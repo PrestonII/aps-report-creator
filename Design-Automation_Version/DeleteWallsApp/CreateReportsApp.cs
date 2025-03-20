@@ -5,11 +5,11 @@ using Autodesk.Revit.ApplicationServices;
 using Autodesk.Revit.DB;
 using DesignAutomationFramework;
 
-namespace DeleteWalls
+namespace ipx.revit.reports
 {
    [Autodesk.Revit.Attributes.Regeneration(Autodesk.Revit.Attributes.RegenerationOption.Manual)]
    [Autodesk.Revit.Attributes.Transaction(Autodesk.Revit.Attributes.TransactionMode.Manual)]
-   public class DeleteWallsApp : IExternalDBApplication
+   public class CreateReportsApp : IExternalDBApplication
    {
       public ExternalDBApplicationResult OnStartup(Autodesk.Revit.ApplicationServices.ControlledApplication app)
       {

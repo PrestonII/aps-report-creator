@@ -7,8 +7,8 @@
     <ProjectGuid>{4B34EFEC-5F75-4EFB-80AA-4629F80D3D5B}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>DeleteWalls</RootNamespace>
-    <AssemblyName>DeleteWalls-Design-Automation</AssemblyName>
+    <RootNamespace>ipx.revit.reports</RootNamespace>
+    <AssemblyName>CreateReportsApp</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />
@@ -64,14 +64,14 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="DeleteWalls.cs" />
+    <Compile Include="CreateReportsApp.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="PackageContents.xml">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </Content>
-    <Content Include="DeleteWalls-Design-Automation.addin">
+    <Content Include="CreateReportsApp.addin">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
