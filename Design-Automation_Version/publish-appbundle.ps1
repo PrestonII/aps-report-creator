@@ -1,17 +1,19 @@
 # PowerShell script to publish AppBundle for Design Automation
-param(
-    [Parameter(Mandatory=$true)]
-    [string]$ClientId,
-    
-    [Parameter(Mandatory=$true)]
-    [string]$ClientSecret,
-    
-    [Parameter(Mandatory=$true)]
-    [string]$AppBundleId,
-    
-    [Parameter(Mandatory=$true)]
-    [string]$AppBundleVersion
-)
+
+# Read .env file
+$envPath = Join-Path $PSScriptRoot ".env"
+if (Test-Path $envPath) {
+    Get-Content $envPath | ForEach-Object {
+        if ($_ -match '(.+)=(.+)') {
+            $key = $matches[1]
+            $value = $matches[2]
+            Set-Variable -Name $key -Value $value
+        }
+    }
+} else {
+    Write-Error ".env file not found at $envPath"
+    exit 1
+}
 
 # Configuration
 $baseUrl = "https://developer.api.autodesk.com"
@@ -20,8 +22,8 @@ $scope = "data:write code:all"
 # Function to get access token
 function Get-AccessToken {
     $body = @{
-        client_id = $ClientId
-        client_secret = $ClientSecret
+        client_id = $FORGE_CLIENT_ID
+        client_secret = $FORGE_CLIENT_SECRET
         grant_type = "client_credentials"
         scope = $scope
     }
@@ -64,7 +66,7 @@ function Create-PackageContentsXml {
 
 # Function to create ZIP file
 function Create-AppBundleZip {
-    $releaseFolder = ".\ReportCreatorApp\bin\Release"
+    $releaseFolder = Join-Path $PSScriptRoot "ReportCreatorApp\bin\Release"
     $bundleFolder = Join-Path $releaseFolder "ReportCreator.bundle"
     $contentsFolder = Join-Path $bundleFolder "Contents"
     $zipPath = Join-Path $releaseFolder "ReportCreator.bundle.zip"
@@ -86,8 +88,8 @@ function Create-AppBundleZip {
     
     # Copy necessary files to Contents folder
     $sourceFiles = @(
-        "ReportCreatorApp.dll",
-        "ReportCreatorApp.addin"
+        "CreateReportsApp.dll",
+        "CreateReportsApp.addin"
     )
     
     foreach ($file in $sourceFiles) {
@@ -122,7 +124,7 @@ try {
         "Content-Type" = "application/zip"
     }
     
-    $url = "$baseUrl/da/us-east/v3/appbundles/$AppBundleId/versions/$AppBundleVersion"
+    $url = "$baseUrl/da/us-east/v3/appbundles/$APP_BUNDLE_ID/versions/$APP_BUNDLE_VERSION"
     $response = Invoke-RestMethod -Uri $url -Method Put -Headers $headers -InFile $zipPath
     
     Write-Host "AppBundle published successfully!"

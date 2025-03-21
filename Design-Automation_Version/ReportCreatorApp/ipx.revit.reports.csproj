@@ -85,10 +85,7 @@
   <PropertyGroup>
     <PostBuildEvent>
       if "$(Configuration)" == "Release" (
-        for /f "tokens=*" %%a in ($(ProjectDir)..\.env) do (
-          set %%a
-        )
-        powershell.exe -ExecutionPolicy Bypass -File "$(ProjectDir)..\publish-appbundle.ps1" -ClientId "%FORGE_CLIENT_ID%" -ClientSecret "%FORGE_CLIENT_SECRET%" -AppBundleId "%APP_BUNDLE_ID%" -AppBundleVersion "%APP_BUNDLE_VERSION%"
+        powershell.exe -ExecutionPolicy Bypass -File "$(ProjectDir)..\publish-appbundle.ps1"
       )
     </PostBuildEvent>
   </PropertyGroup>
