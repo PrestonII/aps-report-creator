@@ -72,7 +72,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="PackageContents.xml">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <Content Include="CreateReportsApp.addin">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
@@ -84,6 +84,12 @@
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>
+      if "$(Configuration)" == "Release" (
+        for /f "tokens=*" %%a in ($(ProjectDir)..\.env) do (
+          set %%a
+        )
+        powershell.exe -ExecutionPolicy Bypass -File "$(ProjectDir)..\publish-appbundle.ps1" -ClientId "%FORGE_CLIENT_ID%" -ClientSecret "%FORGE_CLIENT_SECRET%" -AppBundleId "%APP_BUNDLE_ID%" -AppBundleVersion "%APP_BUNDLE_VERSION%"
+      )
     </PostBuildEvent>
   </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
