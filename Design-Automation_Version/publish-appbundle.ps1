@@ -71,6 +71,11 @@ function Create-AppBundleZip {
     $contentsFolder = Join-Path $bundleFolder "Contents"
     $zipPath = Join-Path $releaseFolder "ReportCreator.bundle.zip"
     
+    Write-Host "Release folder: $releaseFolder"
+    Write-Host "Bundle folder: $bundleFolder"
+    Write-Host "Contents folder: $contentsFolder"
+    Write-Host "Zip path: $zipPath"
+    
     # Clean up existing files
     if (Test-Path $zipPath) {
         Remove-Item $zipPath -Force
@@ -80,8 +85,8 @@ function Create-AppBundleZip {
     }
     
     # Create bundle structure
-    New-Item -ItemType Directory -Path $bundleFolder -Force
-    New-Item -ItemType Directory -Path $contentsFolder -Force
+    New-Item -ItemType Directory -Path $bundleFolder -Force | Out-Null
+    New-Item -ItemType Directory -Path $contentsFolder -Force | Out-Null
     
     # Create PackageContents.xml
     Create-PackageContentsXml -OutputPath (Join-Path $bundleFolder "PackageContents.xml")
@@ -96,13 +101,22 @@ function Create-AppBundleZip {
         $sourcePath = Join-Path $releaseFolder $file
         if (Test-Path $sourcePath) {
             Copy-Item $sourcePath -Destination $contentsFolder -Force
+            Write-Host "Copied $file to Contents folder"
         } else {
             Write-Warning "File not found: $sourcePath"
         }
     }
     
     # Create ZIP file
+    Write-Host "Creating ZIP file from $bundleFolder to $zipPath"
     Compress-Archive -Path "$bundleFolder\*" -DestinationPath $zipPath -Force
+    
+    if (Test-Path $zipPath) {
+        Write-Host "ZIP file created successfully"
+    } else {
+        Write-Error "Failed to create ZIP file"
+        exit 1
+    }
     
     # Clean up bundle folder
     Remove-Item $bundleFolder -Recurse -Force
@@ -125,7 +139,12 @@ try {
     }
     
     $url = "$baseUrl/da/us-east/v3/appbundles/$APP_BUNDLE_ID/versions/$APP_BUNDLE_VERSION"
-    $response = Invoke-RestMethod -Uri $url -Method Put -Headers $headers -InFile $zipPath
+    
+    # Read ZIP file as bytes
+    $zipBytes = [System.IO.File]::ReadAllBytes($zipPath)
+    
+    # Use Invoke-RestMethod with byte array
+    $response = Invoke-RestMethod -Uri $url -Method Put -Headers $headers -Body $zipBytes
     
     Write-Host "AppBundle published successfully!"
     Write-Host "Response: $($response | ConvertTo-Json)"
@@ -135,5 +154,6 @@ try {
     
 } catch {
     Write-Host "Error: $_"
+    Write-Host "Stack Trace: $($_.ScriptStackTrace)"
     exit 1
 } 
