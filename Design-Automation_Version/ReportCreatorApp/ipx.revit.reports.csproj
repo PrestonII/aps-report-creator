@@ -86,7 +86,7 @@
   <PropertyGroup>
     <PostBuildEvent>
       if "$(Configuration)" == "Release" (
-        powershell.exe -ExecutionPolicy Bypass -File "$(ProjectDir)..\publish-appbundle.ps1"
+        powershell.exe -ExecutionPolicy Bypass -File "$(SolutionDir)publish-appbundle.ps1"
       )
     </PostBuildEvent>
   </PropertyGroup>
