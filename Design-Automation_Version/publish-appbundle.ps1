@@ -40,24 +40,50 @@ function Create-PackageContentsXml {
     
     $xmlContent = @"
 <?xml version="1.0" encoding="utf-8"?>
-<ApplicationPackage SchemaVersion="1.0">
-  <Id>ReportCreator</Id>
-  <Version>1.0</Version>
-  <VendorId>ADSK</VendorId>
-  <VendorDescription>Autodesk, www.autodesk.com</VendorDescription>
-  <SupportedOS>Win64</SupportedOS>
-  <Description>Report Creator Application</Description>
-  <Components>
-    <RuntimeRequirements OS="Win64" Platform="Revit" SeriesMin="R2024" SeriesMax="R2024" />
-    <EntryPoint>
-      <Assembly>ReportCreatorApp.dll</Assembly>
-      <FullClassName>ReportCreatorApp.CreateReportsApp</FullClassName>
-      <ClientId>ReportCreator</ClientId>
-      <VendorId>ADSK</VendorId>
-      <VendorDescription>Autodesk, www.autodesk.com</VendorDescription>
-      <Description>Report Creator Application</Description>
-    </EntryPoint>
-  </Components>
+<ApplicationPackage 
+    SchemaVersion="1.0"
+    AutodeskProduct="Revit"
+    ProductType="Application"
+    ProductCode="ReportCreatorApp"
+    UpgradeCode="{$(New-Guid)}"
+    Name="ReportCreatorApp"
+    Description="Report Creator Application"
+    AppVersion="1.0.0"
+    FriendlyVersion="1.0.0"
+    Author="Your Company Name"
+    Icon="./Contents/Resources/icon.png"
+    HelpFile="./Contents/Resources/help.html"
+    SupportedLocales="Enu"
+    AppNameSpace="appstore.exchange.autodesk.com">
+    
+    <CompanyDetails
+        Name="Your Company Name"
+        Phone="12345678"
+        Url="www.yourcompany.com"
+        Email="your.email@example.com"/>
+        
+    <RuntimeRequirements
+        OS="Win64"
+        Platform="Revit"
+        SeriesMin="R2024"
+        SeriesMax="R2024"/>
+        
+    <Components Description="Report Creator Components">
+        <RuntimeRequirements
+            OS="Win64"
+            Platform="Revit"
+            SeriesMin="R2024"
+            SeriesMax="R2024"/>
+        <ComponentEntry
+            AppName="ReportCreatorApp"
+            Version="1.0.0"
+            ModuleName="./Contents/CreateReportsApp.addin"
+            AppDescription="Report Creator App"
+            LoadOnCommandInvocation="False"
+            LoadOnRevitStartup="True">
+            <Commands Description="Report Creator Commands"/>
+        </ComponentEntry>
+    </Components>
 </ApplicationPackage>
 "@
     
@@ -69,11 +95,13 @@ function Create-AppBundleZip {
     $releaseFolder = Join-Path $PSScriptRoot "ReportCreatorApp\bin\Release"
     $bundleFolder = Join-Path $releaseFolder "ReportCreator.bundle"
     $contentsFolder = Join-Path $bundleFolder "Contents"
+    $resourcesFolder = Join-Path $contentsFolder "Resources"
     $zipPath = Join-Path $releaseFolder "ReportCreator.bundle.zip"
     
     Write-Host "Release folder: $releaseFolder"
     Write-Host "Bundle folder: $bundleFolder"
     Write-Host "Contents folder: $contentsFolder"
+    Write-Host "Resources folder: $resourcesFolder"
     Write-Host "Zip path: $zipPath"
     
     # Clean up existing files
@@ -87,29 +115,49 @@ function Create-AppBundleZip {
     # Create bundle structure
     New-Item -ItemType Directory -Path $bundleFolder -Force | Out-Null
     New-Item -ItemType Directory -Path $contentsFolder -Force | Out-Null
+    New-Item -ItemType Directory -Path $resourcesFolder -Force | Out-Null
     
-    # Create PackageContents.xml
+    # Create PackageContents.xml in the bundle root
     Create-PackageContentsXml -OutputPath (Join-Path $bundleFolder "PackageContents.xml")
+    
+    # Create placeholder help and icon files
+    @"
+<!DOCTYPE html>
+<html>
+<head><title>Report Creator Help</title></head>
+<body><h1>Report Creator Help</h1><p>Help content goes here.</p></body>
+</html>
+"@ | Out-File -FilePath (Join-Path $resourcesFolder "help.html") -Encoding UTF8
+
+    # Create a simple 32x32 pixel icon (you should replace this with your actual icon)
+    $iconPath = Join-Path $resourcesFolder "icon.png"
+    if (-not (Test-Path $iconPath)) {
+        # Create an empty icon file
+        [byte[]]::new(0) | Set-Content $iconPath -Encoding Byte
+    }
     
     # Copy necessary files to Contents folder
     $sourceFiles = @(
-        "CreateReportsApp.dll",
-        "CreateReportsApp.addin"
+        @{Source = "CreateReportsApp.dll"; Dest = "CreateReportsApp.dll"},
+        @{Source = "CreateReportsApp.addin"; Dest = "CreateReportsApp.addin"},
+        # @{Source = "DesignAutomationBridge.dll"; Dest = "DesignAutomationBridge.dll"},
+        # @{Source = "Newtonsoft.Json.dll"; Dest = "Newtonsoft.Json.dll"}
     )
     
     foreach ($file in $sourceFiles) {
-        $sourcePath = Join-Path $releaseFolder $file
+        $sourcePath = Join-Path $releaseFolder $file.Source
+        $destPath = Join-Path $contentsFolder $file.Dest
         if (Test-Path $sourcePath) {
-            Copy-Item $sourcePath -Destination $contentsFolder -Force
-            Write-Host "Copied $file to Contents folder"
+            Copy-Item $sourcePath -Destination $destPath -Force
+            Write-Host "Copied $($file.Source) to Contents folder"
         } else {
             Write-Warning "File not found: $sourcePath"
         }
     }
     
-    # Create ZIP file
+    # Create ZIP file from the bundle folder
     Write-Host "Creating ZIP file from $bundleFolder to $zipPath"
-    Compress-Archive -Path "$bundleFolder\*" -DestinationPath $zipPath -Force
+    Compress-Archive -Path "$bundleFolder" -DestinationPath $zipPath -Force
     
     if (Test-Path $zipPath) {
         Write-Host "ZIP file created successfully"
