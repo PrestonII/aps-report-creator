@@ -47,14 +47,14 @@ namespace ipx.revit.reports
             throw new InvalidDataException(nameof(rvtApp));
         }
 
-        string modelPath = data.FilePath;
-        Console.WriteLine($"[DEBUG] modelPath from DesignAutomationData.FilePath: '{modelPath}'");
+        //string modelPath = data.FilePath;
+        //Console.WriteLine($"[DEBUG] modelPath from DesignAutomationData.FilePath: '{modelPath}'");
 
-        if (String.IsNullOrWhiteSpace(modelPath))
-        {
-            Console.WriteLine("[ERROR] modelPath is null or whitespace.");
-            throw new InvalidDataException(nameof(modelPath));
-        }
+        //if (String.IsNullOrWhiteSpace(modelPath))
+        //{
+        //    Console.WriteLine("[ERROR] modelPath is null or whitespace.");
+        //    throw new InvalidDataException(nameof(modelPath));
+        //}
 
         Document doc = data.RevitDoc;
         if (doc == null)
