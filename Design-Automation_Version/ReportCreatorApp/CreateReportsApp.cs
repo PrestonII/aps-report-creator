@@ -32,25 +32,59 @@ namespace ipx.revit.reports
 
     public bool ExportToPdfs(DesignAutomationData data)
     {
-      if (data == null)
-        throw new ArgumentNullException(nameof(data));
+        if (data == null)
+        {
+            Console.WriteLine("[ERROR] DesignAutomationData is null.");
+            throw new ArgumentNullException(nameof(data));
+        }
 
-      Application rvtApp = data.RevitApp;
-      if (rvtApp == null)
-        throw new InvalidDataException(nameof(rvtApp));
+        Console.WriteLine("[INFO] Starting ExportToPdfs...");
 
-      string modelPath = data.FilePath;
-      if (String.IsNullOrWhiteSpace(modelPath))
-        throw new InvalidDataException(nameof(modelPath));
+        Application rvtApp = data.RevitApp;
+        if (rvtApp == null)
+        {
+            Console.WriteLine("[ERROR] RevitApp is null.");
+            throw new InvalidDataException(nameof(rvtApp));
+        }
 
-      Document doc = data.RevitDoc;
-      if (doc == null)
-        throw new InvalidOperationException("Could not open document.");
+        string modelPath = data.FilePath;
+        Console.WriteLine($"[DEBUG] modelPath from DesignAutomationData.FilePath: '{modelPath}'");
 
-      InputParams inputParams = InputParams.Parse("params.json");
+        if (String.IsNullOrWhiteSpace(modelPath))
+        {
+            Console.WriteLine("[ERROR] modelPath is null or whitespace.");
+            throw new InvalidDataException(nameof(modelPath));
+        }
 
-      return ExportToPdfsImp(rvtApp, doc, inputParams);
+        Document doc = data.RevitDoc;
+        if (doc == null)
+        {
+            Console.WriteLine("[ERROR] RevitDoc is null. Could not open document.");
+            throw new InvalidOperationException("Could not open document.");
+        }
+
+        Console.WriteLine("[INFO] Revit document opened successfully.");
+
+        InputParams inputParams = InputParams.Parse("params.json");
+
+        if (inputParams == null)
+        {
+            Console.WriteLine("[WARN] InputParams could not be parsed. Using defaults.");
+            inputParams = new InputParams(); // fallback to all true
+        }
+
+        Console.WriteLine("[INFO] Parsed InputParams:");
+        Console.WriteLine($" - DrawingSheet: {inputParams.DrawingSheet}");
+        Console.WriteLine($" - ThreeD: {inputParams.ThreeD}");
+        Console.WriteLine($" - Detail: {inputParams.Detail}");
+        Console.WriteLine($" - Elevation: {inputParams.Elevation}");
+        Console.WriteLine($" - FloorPlan: {inputParams.FloorPlan}");
+        Console.WriteLine($" - Section: {inputParams.Section}");
+        Console.WriteLine($" - Rendering: {inputParams.Rendering}");
+
+        return ExportToPdfsImp(rvtApp, doc, inputParams);
     }
+
 
 
     private bool ExportToPdfsImp(Application rvtApp, Document doc, InputParams inputParams)
