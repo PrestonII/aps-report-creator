@@ -5,6 +5,11 @@ VisualStudioVersion = 17.9.34607.119
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ipx.revit.reports", "ReportCreatorApp\ipx.revit.reports.csproj", "{4B34EFEC-5F75-4EFB-80AA-4629F80D3D5B}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{7B62703A-99A1-43E6-992B-C5B3AD401892}"
+	ProjectSection(SolutionItems) = preProject
+		publish-appbundle.ps1 = publish-appbundle.ps1
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU

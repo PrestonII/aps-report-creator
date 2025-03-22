@@ -139,7 +139,7 @@ function Create-AppBundleZip {
     # Copy necessary files to Contents folder
     $sourceFiles = @(
         @{Source = "CreateReportsApp.dll"; Dest = "CreateReportsApp.dll"},
-        @{Source = "CreateReportsApp.addin"; Dest = "CreateReportsApp.addin"},
+        @{Source = "CreateReportsApp.addin"; Dest = "CreateReportsApp.addin"}
         # @{Source = "DesignAutomationBridge.dll"; Dest = "DesignAutomationBridge.dll"},
         # @{Source = "Newtonsoft.Json.dll"; Dest = "Newtonsoft.Json.dll"}
     )
