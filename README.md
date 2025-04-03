@@ -1,6 +1,10 @@
 # Revit Report Creator
 
 ![CI](https://github.com/PrestonII/aps-report-creator/workflows/CI/badge.svg)
+[![.net](https://img.shields.io/badge/.net-4.8-green.svg)](http://www.microsoft.com/en-us/download/details.aspx?id=30653)
+[![Design Automation](https://img.shields.io/badge/Design%20Automation-v3-green.svg)](https://aps.autodesk.com/en/docs/design-automation/v3/developers_guide/overview/)
+[![visual studio](https://img.shields.io/badge/Visual%20Studio-2022-green.svg)](https://www.visualstudio.com/)
+[![revit](https://img.shields.io/badge/revit-2023-red.svg)](https://www.autodesk.com/products/revit/overview/)
 
 A Design Automation for Revit application that creates reports with images from external sources.
 

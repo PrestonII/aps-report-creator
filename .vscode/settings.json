@@ -1,4 +1,4 @@
 {
     "dotnet.preferCSharpExtension": true,
-    "dotnet.defaultSolution": "Design-Automation_Version/ReportCreator.sln"
+    "dotnet.defaultSolution": "Design-Automation_Version/ReportCreatorApp.sln"
 }
