@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: 6.0.x
+        
+    - name: Restore dependencies
+      run: dotnet restore Design-Automation_Version/ReportCreatorApp.sln
+      
+    - name: Build
+      run: dotnet build Design-Automation_Version/ReportCreatorApp.sln --no-restore
+      
+    - name: Test
+      run: dotnet test Design-Automation_Version/ReportCreatorApp.Tests/ReportCreatorApp.Tests.csproj --no-build --verbosity normal --logger "trx;LogFileName=test-results.trx"
+      
+    - name: Test Report
+      uses: dorny/test-reporter@v1
+      if: success() || failure()
+      with:
+        name: NUnit Tests
+        path: '**/TestResults/*.trx'
+        reporter: dotnet-trx 

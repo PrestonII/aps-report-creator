@@ -1,25 +1,32 @@
-# DeleteWalls Sample 
+# Revit Report Creator
 
-[![.net](https://img.shields.io/badge/.net-4.8-green.svg)](http://www.microsoft.com/en-us/download/details.aspx?id=30653)
-[![Design Automation](https://img.shields.io/badge/Design%20Automation-v3-green.svg)](https://aps.autodesk.com/en/docs/design-automation/v3/developers_guide/overview/)
-[![visual studio](https://img.shields.io/badge/Visual%20Studio-2022-green.svg)](https://www.visualstudio.com/)
-[![revit](https://img.shields.io/badge/revit-2024-red.svg)](https://www.autodesk.com/products/revit/overview/)
+![CI](https://github.com/PrestonII/aps-report-creator/workflows/CI/badge.svg)
 
-## Description
+A Design Automation for Revit application that creates reports with images from external sources.
 
-DeleteWalls is an application that takes in a rvt file and outputs another rvt file with all of the walls removed. The files in this repository are to be used as exercise files for a [tutorial](https://aps.autodesk.com/en/docs/design-automation/v3/tutorials/revit/step1-convert-addin) to convert a typical Revit add-in to a Design Automation ready Revit add-in.
+## Features
 
-This repository contains two folders. Each of them contains a C# project. Although the projects will be always migrated to latest release of Revit, it should be also working with previous releases (after re-built by the corresponding references & packages). 
+- Creates PDF reports from Revit models
+- Downloads and includes images from external APIs with authentication
+- Organizes images on sheets with proper layout
+- Exports to PDF
 
-- [Desktop_Version](Desktop_Version) - 
-  Contains a C# project of the DeleteWalls sample, which produces an add-in that runs on the desktop version of Revit.  
+## Development
 
-- [Design-Automation_Version](Design-Automation_Version) - 
-  Contains a C# project of the DeleteWalls sample, which produces an add-in that runs on  Design Automation.
+### Prerequisites
 
-Refer to the readme in each folder for details on each project.
+- .NET 6.0 SDK
+- Revit API references
+
+### Building
+```bash
+dotnet build Design-Automation_Version/ReportCreatorApp.sln
+```
+```bash
+dotnet test Design-Automation_Version/ReportCreatorApp.Tests/ReportCreatorApp.Tests.csproj
+```
+
 
 ## License
 
 This sample is licensed under the terms of the [MIT License](http://opensource.org/licenses/MIT). Please see the [LICENSE](LICENSE) file for full details.
-
