@@ -1,0 +1,30 @@
+{
+  "projectName": "Test Project",
+  "projectNumber": "2023-001",
+  "reportType": "AssetReport",
+  "viewTypes": ["FloorPlan", "Elevation", "ThreeDView"],
+  "maxViews": 10,
+  "outputFileName": "TestReport",
+  "authentication": {
+    "username": "test_user",
+    "password": "test_password"
+  },
+  "imageData": [
+    {
+      "asset_id": "asset1",
+      "project": "project1",
+      "asset_type": "image",
+      "image_subtype": "fp_down",
+      "asset_name": "Test Image 1",
+      "asset_url": "https://example.com/image1.png"
+    },
+    {
+      "asset_id": "asset2",
+      "project": "project1",
+      "asset_type": "image",
+      "image_subtype": null,
+      "asset_name": "Test Image 2",
+      "asset_url": "https://example.com/image2.png"
+    }
+  ]
+} 
