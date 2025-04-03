@@ -1,0 +1,32 @@
+{
+  "projectName": "Swiss Ave House",
+  "projectNumber": "2023-001",
+  "reportType": "AssetReport",
+  "viewTypes": ["FloorPlan", "Elevation", "ThreeDView"],
+  "maxViews": 10,
+  "outputFileName": "SwissAveHouseReport",
+  "authentication": {
+    "username": "api_user",
+    "password": "api_password"
+  },
+  "imageData": [
+    {
+      "asset_id": "6eb01db4-5732-4262-923a-f3e177a36e28",
+      "project": "0KYyV*zwHCUQ2g1Nywysd",
+      "asset_type": "image",
+      "image_subtype": "fp_down",
+      "asset_name": "2D Pipeline Point Cloud Top-down",
+      "asset_url_override": "https://file.ipx-app.com/v1/private/download/ml_visualizations%2F0KYyV%2AzwHCUQ2g1Nywysd%2F20250225ad7550ff%2F2d_pipeline%2F0KYyV%2AzwHCUQ2g1Nywysd_fp_down.png",
+      "asset_url": "https://file.ipx-app.com/v1/private/download/ml_visualizations%2F0KYyV%2AzwHCUQ2g1Nywysd%2F20250225ad7550ff%2F2d_pipeline%2F0KYyV%2AzwHCUQ2g1Nywysd_fp_down.png"
+    },
+    {
+      "asset_id": "1c3e426b-4b85-4ddc-bf7f-62ab6b910d28",
+      "project": "0KYyV*zwHCUQ2g1Nywysd",
+      "asset_type": "image",
+      "image_subtype": null,
+      "asset_name": "Preprocessor Building Detection View 1",
+      "asset_url_override": "https://file.ipx-app.com/v1/private/download/ml_visualizations%2F0KYyV%2AzwHCUQ2g1Nywysd%2F20250225ad7550ff%2Fpreprocessor%2Felevation_views%2F0KYyV%2AzwHCUQ2g1Nywysd_elevation1_reconstituted_BW_detected_levels.png",
+      "asset_url": "https://file.ipx-app.com/v1/private/download/ml_visualizations%2F0KYyV%2AzwHCUQ2g1Nywysd%2F20250225ad7550ff%2Fpreprocessor%2Felevation_views%2F0KYyV%2AzwHCUQ2g1Nywysd_elevation1_reconstituted_BW_detected_levels.png"
+    }
+  ]
+}

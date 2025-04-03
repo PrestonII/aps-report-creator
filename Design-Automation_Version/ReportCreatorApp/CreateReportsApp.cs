@@ -6,6 +6,9 @@ using Autodesk.Revit.ApplicationServices;
 using Autodesk.Revit.DB;
 using DesignAutomationFramework;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using ipx.revit.reports.Models;
+using ipx.revit.reports.Services;
 
 namespace ipx.revit.reports
 {
@@ -47,14 +50,14 @@ namespace ipx.revit.reports
             throw new InvalidDataException(nameof(rvtApp));
         }
 
-        //string modelPath = data.FilePath;
-        //Console.WriteLine($"[DEBUG] modelPath from DesignAutomationData.FilePath: '{modelPath}'");
+        string modelPath = data.FilePath;
+        Console.WriteLine($"[DEBUG] modelPath from DesignAutomationData.FilePath: '{modelPath}'");
 
-        //if (String.IsNullOrWhiteSpace(modelPath))
-        //{
-        //    Console.WriteLine("[ERROR] modelPath is null or whitespace.");
-        //    throw new InvalidDataException(nameof(modelPath));
-        //}
+        if (String.IsNullOrWhiteSpace(modelPath))
+        {
+            Console.WriteLine("[ERROR] modelPath is null or whitespace.");
+            throw new InvalidDataException(nameof(modelPath));
+        }
 
         Document doc = data.RevitDoc;
         if (doc == null)
@@ -65,106 +68,132 @@ namespace ipx.revit.reports
 
         Console.WriteLine("[INFO] Revit document opened successfully.");
 
-        InputParams inputParams = InputParams.Parse("params.json");
-
-        if (inputParams == null)
+        // Parse the input JSON file
+        ProjectData projectData = ParseInputJson("params.json");
+        if (projectData == null)
         {
-            Console.WriteLine("[WARN] InputParams could not be parsed. Using defaults.");
-            inputParams = new InputParams(); // fallback to all true
+            Console.WriteLine("[ERROR] Failed to parse input JSON.");
+            throw new InvalidOperationException("Failed to parse input JSON.");
         }
 
-        Console.WriteLine("[INFO] Parsed InputParams:");
-        Console.WriteLine($" - DrawingSheet: {inputParams.DrawingSheet}");
-        Console.WriteLine($" - ThreeD: {inputParams.ThreeD}");
-        Console.WriteLine($" - Detail: {inputParams.Detail}");
-        Console.WriteLine($" - Elevation: {inputParams.Elevation}");
-        Console.WriteLine($" - FloorPlan: {inputParams.FloorPlan}");
-        Console.WriteLine($" - Section: {inputParams.Section}");
-        Console.WriteLine($" - Rendering: {inputParams.Rendering}");
+        Console.WriteLine($"[INFO] Successfully parsed project data for project: {projectData.ProjectName}");
+        Console.WriteLine($"[INFO] Report type: {projectData.ReportType}");
+        Console.WriteLine($"[INFO] Number of view types to export: {projectData.ViewTypes.Count}");
+        Console.WriteLine($"[INFO] Found {projectData.ImageData.Count} image assets in the input JSON");
 
-        return ExportToPdfsImp(rvtApp, doc, inputParams);
+        return ExportToPdfsImp(rvtApp, doc, projectData);
     }
 
-
-
-    private bool ExportToPdfsImp(Application rvtApp, Document doc, InputParams inputParams)
+    private ProjectData ParseInputJson(string jsonPath)
     {
+        try
+        {
+            if (!File.Exists(jsonPath))
+            {
+                Console.WriteLine($"[WARNING] Input JSON file not found at: {jsonPath}");
+                return null;
+            }
 
+            string jsonContent = File.ReadAllText(jsonPath);
+            Console.WriteLine($"[DEBUG] Raw JSON content: {jsonContent}");
+
+            ProjectData projectData = JsonConvert.DeserializeObject<ProjectData>(jsonContent);
+            return projectData;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ERROR] Exception parsing JSON: {ex.Message}");
+            Console.WriteLine($"[ERROR] Stack trace: {ex.StackTrace}");
+            return null;
+        }
+    }
+
+    private bool ExportToPdfsImp(Application rvtApp, Document doc, ProjectData projectData)
+    {
       using (Transaction tx = new Transaction(doc))
       {
         tx.Start("Export PDF");
 
+        // Get all views that match the specified view types
         List<View> views = new FilteredElementCollector(doc)
             .OfClass(typeof(View))
             .Cast<View>()
-            .Where(vw => (
-            !vw.IsTemplate && vw.CanBePrinted
-            && (inputParams.DrawingSheet && vw.ViewType == ViewType.DrawingSheet
-            || inputParams.ThreeD && vw.ViewType == ViewType.ThreeD
-            || inputParams.Detail && vw.ViewType == ViewType.Detail
-            || inputParams.Elevation && vw.ViewType == ViewType.Elevation
-            || inputParams.FloorPlan && vw.ViewType == ViewType.FloorPlan
-            || inputParams.Rendering && vw.ViewType == ViewType.Rendering
-            || inputParams.Section && vw.ViewType == ViewType.Section)
-            )
-        ).ToList();
+            .Where(vw => !vw.IsTemplate && vw.CanBePrinted && projectData.ViewTypes.Contains(vw.ViewType))
+            .ToList();
 
-        Console.WriteLine("the number of views: " + views.Count);
+        Console.WriteLine($"[INFO] Found {views.Count} views matching the specified view types");
 
-        // Note: Setting the maximum number of views to be exported as 5 for demonstration purpose.
-        // Remove or edit here in your production application
-        const int Max_views = 5;
-        IList<ElementId> viewIds = new List<ElementId>();
-        for (int i = 0; i < views.Count && i < Max_views; ++i)  // To Do: edit or remove max_views as required.
+        // Apply view filters if specified
+        if (projectData.ViewFilters != null && projectData.ViewFilters.Count > 0)
         {
-          Console.WriteLine(views[i].Name + @", view type is: " + views[i].ViewType.ToString());
-          viewIds.Add(views[i].Id);
+            Console.WriteLine($"[INFO] Applying {projectData.ViewFilters.Count} view filters");
+            foreach (var filter in projectData.ViewFilters)
+            {
+                Console.WriteLine($"[INFO] Applying filter: {filter.Name} ({filter.Type})");
+                // Apply filter logic here
+                // This would depend on the specific filter types and how they should be applied
+            }
         }
 
-
-        if (0 < views.Count)
+        // Limit the number of views if specified
+        if (projectData.MaxViews > 0 && views.Count > projectData.MaxViews)
         {
-          PDFExportOptions options = new PDFExportOptions();
-          options.FileName = "result"; 
-          options.Combine = true;
-          string workingFolder = Directory.GetCurrentDirectory();
-          doc.Export(workingFolder, viewIds, options);
+            Console.WriteLine($"[INFO] Limiting views from {views.Count} to {projectData.MaxViews}");
+            views = views.Take(projectData.MaxViews).ToList();
         }
+
+        // Create FileService with credentials from the project data
+        string username = projectData.Authentication?.Username;
+        string password = projectData.Authentication?.Password;
+        
+        if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
+        {
+            Console.WriteLine("[WARNING] Authentication credentials not provided. Image downloading may fail.");
+        }
+        else
+        {
+            Console.WriteLine($"[INFO] Using provided authentication credentials for user: {username}");
+        }
+        
+        FileService fileService = new FileService(username, password);
+        
+        // Create a temporary folder for downloaded images
+        string tempFolder = Path.Combine(Path.GetTempPath(), "RevitImages");
+        Directory.CreateDirectory(tempFolder);
+        
+        // Filter for image assets only
+        var imageAssets = projectData.ImageData
+            .Where(a => a.AssetType.Equals("image", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+            
+        Console.WriteLine($"[INFO] Found {imageAssets.Count} image assets to process");
+        
+        // TODO: Process assets and place images on sheets
+        // This will be implemented in the next steps
+
+        // Export the views to PDF
+        if (views.Count > 0)
+        {
+            IList<ElementId> viewIds = views.Select(v => v.Id).ToList();
+            
+            PDFExportOptions options = new PDFExportOptions();
+            options.FileName = projectData.OutputFileName ?? "result";
+            options.Combine = true;
+            
+            string workingFolder = Directory.GetCurrentDirectory();
+            Console.WriteLine($"[INFO] Exporting {viewIds.Count} views to PDF in folder: {workingFolder}");
+            
+            doc.Export(workingFolder, viewIds, options);
+            Console.WriteLine($"[INFO] PDF export completed successfully");
+        }
+        else
+        {
+            Console.WriteLine("[WARNING] No views found matching the specified criteria");
+        }
+        
         tx.RollBack();
       }
       return true;
-    }
-
-  }
-
-  /// <summary>
-  /// InputParams is used to parse the input Json parameters
-  /// </summary>
-  internal class InputParams
-  {
-    public bool DrawingSheet { get; set; } = true;
-    public bool ThreeD { get; set; } = true;
-    public bool Detail { get; set; } = true;
-    public bool Elevation { get; set; } = true;
-    public bool FloorPlan { get; set; } = true;
-    public bool Section { get; set; } = true;
-    public bool Rendering { get; set; } = true;
-
-    static public InputParams Parse(string jsonPath)
-    {
-      try
-      {
-        if (!File.Exists(jsonPath))
-          return new InputParams { DrawingSheet = true, ThreeD = true, Detail = true, Elevation = true, FloorPlan = true, Section = true, Rendering = true };
-
-        string jsonContents = File.ReadAllText(jsonPath);
-        return JsonConvert.DeserializeObject<InputParams>(jsonContents);
-      }
-      catch (System.Exception ex)
-      {
-        Console.WriteLine("Exception when parsing json file: " + ex);
-        return null;
-      }
     }
   }
 }

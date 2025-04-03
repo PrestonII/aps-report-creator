@@ -1,0 +1,246 @@
+[
+    {
+      "asset_id": "3030d060-d617-42ea-a2c8-9f940811e8a3",
+      "project": "0KYyV*zwHCUQ2g1Nywysd",
+      "asset_type": "dwg",
+      "image_subtype": null,
+      "asset_name": "MP - Swiss Ave House_RCP_L2",
+      "asset_url_override": null,
+      "asset_url": "https://api.ipx-app.com/bimit-v2/download/assets/3030d060-d617-42ea-a2c8-9f940811e8a3.dwg"
+    },
+    {
+      "asset_id": "441971b1-bc7a-42bf-8922-9fbe9c964beb",
+      "project": "0KYyV*zwHCUQ2g1Nywysd",
+      "asset_type": "cad_zip",
+      "image_subtype": null,
+      "asset_name": "MP - Swiss Ave House",
+      "asset_url_override": null,
+      "asset_url": "https://api.ipx-app.com/bimit-v2/download/assets/441971b1-bc7a-42bf-8922-9fbe9c964beb.zip"
+    },
+    {
+      "asset_id": "d0085199-d688-416b-be19-dec0ea3cfe06",
+      "project": "0KYyV*zwHCUQ2g1Nywysd",
+      "asset_type": "dwg",
+      "image_subtype": null,
+      "asset_name": "MP - Swiss Ave House_RCP_L1",
+      "asset_url_override": null,
+      "asset_url": "https://api.ipx-app.com/bimit-v2/download/assets/d0085199-d688-416b-be19-dec0ea3cfe06.dwg"
+    },
+    {
+      "asset_id": "c1a1e224-6bcc-4abf-ab0e-7af4d26d32ed",
+      "project": "0KYyV*zwHCUQ2g1Nywysd",
+      "asset_type": "dwg",
+      "image_subtype": null,
+      "asset_name": "MP - Swiss Ave House_L1",
+      "asset_url_override": null,
+      "asset_url": "https://api.ipx-app.com/bimit-v2/download/assets/c1a1e224-6bcc-4abf-ab0e-7af4d26d32ed.dwg"
+    },
+    {
+      "asset_id": "d7b0d428-d1ae-4409-ab15-f343175e1ddb",
+      "project": "0KYyV*zwHCUQ2g1Nywysd",
+      "asset_type": "dwg",
+      "image_subtype": null,
+      "asset_name": "MP - Swiss Ave House_L2",
+      "asset_url_override": null,
+      "asset_url": "https://api.ipx-app.com/bimit-v2/download/assets/d7b0d428-d1ae-4409-ab15-f343175e1ddb.dwg"
+    },
+    {
+      "asset_id": "e6aded1b-35cd-4fab-a953-86642fd7e063",
+      "project": "0KYyV*zwHCUQ2g1Nywysd",
+      "asset_type": "ifc",
+      "image_subtype": null,
+      "asset_name": "MP - Swiss Ave House",
+      "asset_url_override": null,
+      "asset_url": "https://api.ipx-app.com/bimit-v2/download/assets/e6aded1b-35cd-4fab-a953-86642fd7e063.ifc"
+    },
+    {
+      "asset_id": "cc53aa1e-1c0b-4766-9e29-3e3edc32efed",
+      "project": "0KYyV*zwHCUQ2g1Nywysd",
+      "asset_type": "rvt",
+      "image_subtype": null,
+      "asset_name": "MP - Swiss Ave House",
+      "asset_url_override": null,
+      "asset_url": "https://api.ipx-app.com/bimit-v2/download/assets/cc53aa1e-1c0b-4766-9e29-3e3edc32efed.rvt"
+    },
+    {
+      "asset_id": "9d3d4d25-e355-4148-a9eb-4ed139d16e27",
+      "project": "0KYyV*zwHCUQ2g1Nywysd",
+      "asset_type": "rcs",
+      "image_subtype": null,
+      "asset_name": "MP - Swiss Ave House",
+      "asset_url_override": null,
+      "asset_url": "https://api.ipx-app.com/bimit-v2/download/assets/9d3d4d25-e355-4148-a9eb-4ed139d16e27.rcs"
+    },
+    {
+      "asset_id": "6eb01db4-5732-4262-923a-f3e177a36e28",
+      "project": "0KYyV*zwHCUQ2g1Nywysd",
+      "asset_type": "image",
+      "image_subtype": "fp_down",
+      "asset_name": "2D Pipeline Point Cloud Top-down",
+      "asset_url_override": "https://file.ipx-app.com/v1/private/download/ml_visualizations%2F0KYyV%2AzwHCUQ2g1Nywysd%2F20250225ad7550ff%2F2d_pipeline%2F0KYyV%2AzwHCUQ2g1Nywysd_fp_down.png",
+      "asset_url": "https://file.ipx-app.com/v1/private/download/ml_visualizations%2F0KYyV%2AzwHCUQ2g1Nywysd%2F20250225ad7550ff%2F2d_pipeline%2F0KYyV%2AzwHCUQ2g1Nywysd_fp_down.png"
+    },
+    {
+      "asset_id": "1c3e426b-4b85-4ddc-bf7f-62ab6b910d28",
+      "project": "0KYyV*zwHCUQ2g1Nywysd",
+      "asset_type": "image",
+      "image_subtype": null,
+      "asset_name": "Preprocessor Building Detection View 1",
+      "asset_url_override": "https://file.ipx-app.com/v1/private/download/ml_visualizations%2F0KYyV%2AzwHCUQ2g1Nywysd%2F20250225ad7550ff%2Fpreprocessor%2Felevation_views%2F0KYyV%2AzwHCUQ2g1Nywysd_elevation1_reconstituted_BW_detected_levels.png",
+      "asset_url": "https://file.ipx-app.com/v1/private/download/ml_visualizations%2F0KYyV%2AzwHCUQ2g1Nywysd%2F20250225ad7550ff%2Fpreprocessor%2Felevation_views%2F0KYyV%2AzwHCUQ2g1Nywysd_elevation1_reconstituted_BW_detected_levels.png"
+    },
+    {
+      "asset_id": "f31ca25d-764e-4456-8ae9-992bff734d1a",
+      "project": "0KYyV*zwHCUQ2g1Nywysd",
+      "asset_type": "image",
+      "image_subtype": null,
+      "asset_name": "Preprocessor Building Detection View 2",
+      "asset_url_override": "https://file.ipx-app.com/v1/private/download/ml_visualizations%2F0KYyV%2AzwHCUQ2g1Nywysd%2F20250225ad7550ff%2Fpreprocessor%2Felevation_views%2F0KYyV%2AzwHCUQ2g1Nywysd_elevation2_reconstituted_BW_detected_levels.png",
+      "asset_url": "https://file.ipx-app.com/v1/private/download/ml_visualizations%2F0KYyV%2AzwHCUQ2g1Nywysd%2F20250225ad7550ff%2Fpreprocessor%2Felevation_views%2F0KYyV%2AzwHCUQ2g1Nywysd_elevation2_reconstituted_BW_detected_levels.png"
+    },
+    {
+      "asset_id": "ac80c3d5-8cdd-4096-a6b2-5110c2111f86",
+      "project": "0KYyV*zwHCUQ2g1Nywysd",
+      "asset_type": "image",
+      "image_subtype": null,
+      "asset_name": "Preprocessor building_0 Level Detect Elevation View (XZ)",
+      "asset_url_override": "https://file.ipx-app.com/v1/private/download/ml_visualizations%2F0KYyV%2AzwHCUQ2g1Nywysd%2F20250225ad7550ff%2Fpreprocessor%2Fbuilding_0%2Flevel_detection_visualizations%2F0KYyV%2AzwHCUQ2g1Nywysd_xz_projection.png",
+      "asset_url": "https://file.ipx-app.com/v1/private/download/ml_visualizations%2F0KYyV%2AzwHCUQ2g1Nywysd%2F20250225ad7550ff%2Fpreprocessor%2Fbuilding_0%2Flevel_detection_visualizations%2F0KYyV%2AzwHCUQ2g1Nywysd_xz_projection.png"
+    },
+    {
+      "asset_id": "6d8fc29d-61cb-4246-b5fb-50d41a76cacc",
+      "project": "0KYyV*zwHCUQ2g1Nywysd",
+      "asset_type": "image",
+      "image_subtype": null,
+      "asset_name": "Preprocessor building_0 Level Detect Elevation View (YZ)",
+      "asset_url_override": "https://file.ipx-app.com/v1/private/download/ml_visualizations%2F0KYyV%2AzwHCUQ2g1Nywysd%2F20250225ad7550ff%2Fpreprocessor%2Fbuilding_0%2Flevel_detection_visualizations%2F0KYyV%2AzwHCUQ2g1Nywysd_yz_projection.png",
+      "asset_url": "https://file.ipx-app.com/v1/private/download/ml_visualizations%2F0KYyV%2AzwHCUQ2g1Nywysd%2F20250225ad7550ff%2Fpreprocessor%2Fbuilding_0%2Flevel_detection_visualizations%2F0KYyV%2AzwHCUQ2g1Nywysd_yz_projection.png"
+    },
+    {
+      "asset_id": "42216496-fa7d-4dbd-b92e-31ba5cf1c2ee",
+      "project": "0KYyV*zwHCUQ2g1Nywysd",
+      "asset_type": "image",
+      "image_subtype": null,
+      "asset_name": "Preprocessor building_0 Level Detect Top-down View (Level 1)",
+      "asset_url_override": "https://file.ipx-app.com/v1/private/download/ml_visualizations%2F0KYyV%2AzwHCUQ2g1Nywysd%2F20250225ad7550ff%2Fpreprocessor%2Fbuilding_0%2Flevel_detection_visualizations%2Flevel_views%2F0KYyV%2AzwHCUQ2g1Nywysd_level_01_top_down.png",
+      "asset_url": "https://file.ipx-app.com/v1/private/download/ml_visualizations%2F0KYyV%2AzwHCUQ2g1Nywysd%2F20250225ad7550ff%2Fpreprocessor%2Fbuilding_0%2Flevel_detection_visualizations%2Flevel_views%2F0KYyV%2AzwHCUQ2g1Nywysd_level_01_top_down.png"
+    },
+    {
+      "asset_id": "0f0d3fd0-2cac-44e2-aafc-8d91bd8ee970",
+      "project": "0KYyV*zwHCUQ2g1Nywysd",
+      "asset_type": "image",
+      "image_subtype": null,
+      "asset_name": "Preprocessor building_0 Level Detect Top-down View (Level 2)",
+      "asset_url_override": "https://file.ipx-app.com/v1/private/download/ml_visualizations%2F0KYyV%2AzwHCUQ2g1Nywysd%2F20250225ad7550ff%2Fpreprocessor%2Fbuilding_0%2Flevel_detection_visualizations%2Flevel_views%2F0KYyV%2AzwHCUQ2g1Nywysd_level_02_top_down.png",
+      "asset_url": "https://file.ipx-app.com/v1/private/download/ml_visualizations%2F0KYyV%2AzwHCUQ2g1Nywysd%2F20250225ad7550ff%2Fpreprocessor%2Fbuilding_0%2Flevel_detection_visualizations%2Flevel_views%2F0KYyV%2AzwHCUQ2g1Nywysd_level_02_top_down.png"
+    },
+    {
+      "asset_id": "0689a60c-13a7-4129-9cff-f8971deb5f99",
+      "project": "0KYyV*zwHCUQ2g1Nywysd",
+      "asset_type": "image",
+      "image_subtype": null,
+      "asset_name": "Preprocessor building_0 Level Detect Top-down View (Level 3)",
+      "asset_url_override": "https://file.ipx-app.com/v1/private/download/ml_visualizations%2F0KYyV%2AzwHCUQ2g1Nywysd%2F20250225ad7550ff%2Fpreprocessor%2Fbuilding_0%2Flevel_detection_visualizations%2Flevel_views%2F0KYyV%2AzwHCUQ2g1Nywysd_level_03_top_down.png",
+      "asset_url": "https://file.ipx-app.com/v1/private/download/ml_visualizations%2F0KYyV%2AzwHCUQ2g1Nywysd%2F20250225ad7550ff%2Fpreprocessor%2Fbuilding_0%2Flevel_detection_visualizations%2Flevel_views%2F0KYyV%2AzwHCUQ2g1Nywysd_level_03_top_down.png"
+    },
+    {
+      "asset_id": "48be064b-8526-465d-8d1b-6f6295b9f726",
+      "project": "0KYyV*zwHCUQ2g1Nywysd",
+      "asset_type": "image",
+      "image_subtype": null,
+      "asset_name": "2D Pipeline Slab Visualization Level 1",
+      "asset_url_override": "https://file.ipx-app.com/v1/private/download/ml_visualizations%2F0KYyV%2AzwHCUQ2g1Nywysd%2F20250225ad7550ff%2F2d_pipeline%2F0KYyV%2AzwHCUQ2g1Nywysd_level_1_slab_visualization.png",
+      "asset_url": "https://file.ipx-app.com/v1/private/download/ml_visualizations%2F0KYyV%2AzwHCUQ2g1Nywysd%2F20250225ad7550ff%2F2d_pipeline%2F0KYyV%2AzwHCUQ2g1Nywysd_level_1_slab_visualization.png"
+    },
+    {
+      "asset_id": "d2430e8a-3686-44ea-8ccf-912c0b81cde6",
+      "project": "0KYyV*zwHCUQ2g1Nywysd",
+      "asset_type": "image",
+      "image_subtype": null,
+      "asset_name": "2D Pipeline Slab Visualization Level 2",
+      "asset_url_override": "https://file.ipx-app.com/v1/private/download/ml_visualizations%2F0KYyV%2AzwHCUQ2g1Nywysd%2F20250225ad7550ff%2F2d_pipeline%2F0KYyV%2AzwHCUQ2g1Nywysd_level_2_slab_visualization.png",
+      "asset_url": "https://file.ipx-app.com/v1/private/download/ml_visualizations%2F0KYyV%2AzwHCUQ2g1Nywysd%2F20250225ad7550ff%2F2d_pipeline%2F0KYyV%2AzwHCUQ2g1Nywysd_level_2_slab_visualization.png"
+    },
+    {
+      "asset_id": "bdb5a773-91af-4f77-84d5-0498e7909d5a",
+      "project": "0KYyV*zwHCUQ2g1Nywysd",
+      "asset_type": "image",
+      "image_subtype": null,
+      "asset_name": "2D Pipeline Slab Visualization Level 3",
+      "asset_url_override": "https://file.ipx-app.com/v1/private/download/ml_visualizations%2F0KYyV%2AzwHCUQ2g1Nywysd%2F20250225ad7550ff%2F2d_pipeline%2F0KYyV%2AzwHCUQ2g1Nywysd_level_3_slab_visualization.png",
+      "asset_url": "https://file.ipx-app.com/v1/private/download/ml_visualizations%2F0KYyV%2AzwHCUQ2g1Nywysd%2F20250225ad7550ff%2F2d_pipeline%2F0KYyV%2AzwHCUQ2g1Nywysd_level_3_slab_visualization.png"
+    },
+    {
+      "asset_id": "3675fdcc-56a5-4b9d-b413-d93857ddc7e5",
+      "project": "0KYyV*zwHCUQ2g1Nywysd",
+      "asset_type": "image",
+      "image_subtype": null,
+      "asset_name": "2D Pipeline Top-down Wall Vis Level 1",
+      "asset_url_override": "https://file.ipx-app.com/v1/private/download/ml_visualizations%2F0KYyV%2AzwHCUQ2g1Nywysd%2F20250225ad7550ff%2F2d_pipeline%2Ftop_down_wall_level_1.png",
+      "asset_url": "https://file.ipx-app.com/v1/private/download/ml_visualizations%2F0KYyV%2AzwHCUQ2g1Nywysd%2F20250225ad7550ff%2F2d_pipeline%2Ftop_down_wall_level_1.png"
+    },
+    {
+      "asset_id": "bbadf08b-1ef0-40fd-9f68-3369ade8ac64",
+      "project": "0KYyV*zwHCUQ2g1Nywysd",
+      "asset_type": "image",
+      "image_subtype": null,
+      "asset_name": "2D Pipeline Top-down Wall Vis Level 2",
+      "asset_url_override": "https://file.ipx-app.com/v1/private/download/ml_visualizations%2F0KYyV%2AzwHCUQ2g1Nywysd%2F20250225ad7550ff%2F2d_pipeline%2Ftop_down_wall_level_2.png",
+      "asset_url": "https://file.ipx-app.com/v1/private/download/ml_visualizations%2F0KYyV%2AzwHCUQ2g1Nywysd%2F20250225ad7550ff%2F2d_pipeline%2Ftop_down_wall_level_2.png"
+    },
+    {
+      "asset_id": "2bba0888-b327-4539-a7c7-cab1120a9bb9",
+      "project": "0KYyV*zwHCUQ2g1Nywysd",
+      "asset_type": "image",
+      "image_subtype": null,
+      "asset_name": "2D Pipeline Top-down Wall Vis Level 3",
+      "asset_url_override": "https://file.ipx-app.com/v1/private/download/ml_visualizations%2F0KYyV%2AzwHCUQ2g1Nywysd%2F20250225ad7550ff%2F2d_pipeline%2Ftop_down_wall_level_3.png",
+      "asset_url": "https://file.ipx-app.com/v1/private/download/ml_visualizations%2F0KYyV%2AzwHCUQ2g1Nywysd%2F20250225ad7550ff%2F2d_pipeline%2Ftop_down_wall_level_3.png"
+    },
+    {
+      "asset_id": "4d837a6b-e177-4238-b4c8-8792f0f23438",
+      "project": "0KYyV*zwHCUQ2g1Nywysd",
+      "asset_type": "potree",
+      "image_subtype": null,
+      "asset_name": "Segmented Point Cloud",
+      "asset_url_override": "https://file.ipx-app.com/v1/private/download/ml_visualizations%252F0KYyV%2AzwHCUQ2g1Nywysd%252F20250225ad7550ff%252Fpotree%252Fmetadata.json",
+      "asset_url": "https://file.ipx-app.com/v1/private/download/ml_visualizations%252F0KYyV%2AzwHCUQ2g1Nywysd%252F20250225ad7550ff%252Fpotree%252Fmetadata.json"
+    },
+    {
+      "asset_id": "7e39b276-a3fb-439a-a46b-187fe6661eb5",
+      "project": "0KYyV*zwHCUQ2g1Nywysd",
+      "asset_type": "image",
+      "image_subtype": null,
+      "asset_name": "Preprocessor building_0 Elevation Histogram Heuristics",
+      "asset_url_override": "https://file.ipx-app.com/v1/private/download/ml_visualizations%2F0KYyV%2AzwHCUQ2g1Nywysd%2F20250225ad7550ff%2Felevation%2Fbuilding_0%2Felev_hist_heur.png",
+      "asset_url": "https://file.ipx-app.com/v1/private/download/ml_visualizations%2F0KYyV%2AzwHCUQ2g1Nywysd%2F20250225ad7550ff%2Felevation%2Fbuilding_0%2Felev_hist_heur.png"
+    },
+    {
+      "asset_id": "afdaa62e-bdb8-4521-b1b8-801b0fa22682",
+      "project": "0KYyV*zwHCUQ2g1Nywysd",
+      "asset_type": "image",
+      "image_subtype": null,
+      "asset_name": "Preprocessor building_0 Elevation Histogram PCP",
+      "asset_url_override": "https://file.ipx-app.com/v1/private/download/ml_visualizations%2F0KYyV%2AzwHCUQ2g1Nywysd%2F20250225ad7550ff%2Felevation%2Fbuilding_0%2Felev_hist_pcp.png",
+      "asset_url": "https://file.ipx-app.com/v1/private/download/ml_visualizations%2F0KYyV%2AzwHCUQ2g1Nywysd%2F20250225ad7550ff%2Felevation%2Fbuilding_0%2Felev_hist_pcp.png"
+    },
+    {
+      "asset_id": "77c2c36d-aa29-433a-8f8d-dde84e6d6839",
+      "project": "0KYyV*zwHCUQ2g1Nywysd",
+      "asset_type": "image",
+      "image_subtype": null,
+      "asset_name": "Preprocessor building_0 Elevation Histogram 3D",
+      "asset_url_override": "https://file.ipx-app.com/v1/private/download/ml_visualizations%2F0KYyV%2AzwHCUQ2g1Nywysd%2F20250225ad7550ff%2Felevation%2Fbuilding_0%2Felev_hist_3d.png",
+      "asset_url": "https://file.ipx-app.com/v1/private/download/ml_visualizations%2F0KYyV%2AzwHCUQ2g1Nywysd%2F20250225ad7550ff%2Felevation%2Fbuilding_0%2Felev_hist_3d.png"
+    },
+    {
+      "asset_id": "b14d06a2-f0ea-4c4d-aaf0-284d50a3bb63",
+      "project": "0KYyV*zwHCUQ2g1Nywysd",
+      "asset_type": "image",
+      "image_subtype": null,
+      "asset_name": "Preprocessor building_0 Elevation Comparision",
+      "asset_url_override": "https://file.ipx-app.com/v1/private/download/ml_visualizations%2F0KYyV%2AzwHCUQ2g1Nywysd%2F20250225ad7550ff%2Felevation%2Fbuilding_0%2Felevation_overview.png",
+      "asset_url": "https://file.ipx-app.com/v1/private/download/ml_visualizations%2F0KYyV%2AzwHCUQ2g1Nywysd%2F20250225ad7550ff%2Felevation%2Fbuilding_0%2Felevation_overview.png"
+    }
+  ]
+  
