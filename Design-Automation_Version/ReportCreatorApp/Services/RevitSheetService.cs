@@ -59,7 +59,7 @@ namespace ipx.revit.reports.Services
             Console.WriteLine($"[INFO] Placing view {view.Name} on sheet {sheet.Name}");
             
             // Check if the view can be placed on a sheet
-            if (!view.CanBePlacedOnSheet)
+            if (!view.ViewType.ToString().Contains("Drafting"))
             {
                 throw new InvalidOperationException($"View {view.Name} cannot be placed on a sheet");
             }
@@ -78,20 +78,24 @@ namespace ipx.revit.reports.Services
         private FamilySymbol FindTitleBlock()
         {
             // Get all title block types
-            List<FamilySymbol> titleBlocks = new FilteredElementCollector(_doc)
+            var titleBlocks = new FilteredElementCollector(_doc)
                 .OfCategory(BuiltInCategory.OST_TitleBlocks)
                 .OfClass(typeof(FamilySymbol))
-                .Cast<FamilySymbol>()
-                .ToList();
+                .FirstOrDefault(e => e is FamilySymbol) as FamilySymbol;
                 
-            if (titleBlocks.Count == 0)
+            if (titleBlocks == null)
             {
                 Console.WriteLine("[WARNING] No title blocks found in the document");
                 return null;
             }
             
-            // Return the first title block
-            return titleBlocks.First();
+            // Ensure the symbol is active
+            if (!titleBlocks.IsActive)
+            {
+                titleBlocks.Activate();
+            }
+            
+            return titleBlocks;
         }
 
         /// <summary>
@@ -102,6 +106,7 @@ namespace ipx.revit.reports.Services
         {
             return new FilteredElementCollector(_doc)
                 .OfClass(typeof(ViewSheet))
+                .WhereElementIsNotElementType()
                 .Cast<ViewSheet>()
                 .ToList();
         }
@@ -115,6 +120,7 @@ namespace ipx.revit.reports.Services
         {
             return new FilteredElementCollector(_doc)
                 .OfClass(typeof(ViewSheet))
+                .WhereElementIsNotElementType()
                 .Cast<ViewSheet>()
                 .FirstOrDefault(s => s.SheetNumber == sheetNumber);
         }

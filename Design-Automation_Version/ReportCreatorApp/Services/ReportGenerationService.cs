@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using Autodesk.Revit.ApplicationServices;
 using Autodesk.Revit.DB;
 using ipx.revit.reports.Models;
@@ -37,7 +38,7 @@ namespace ipx.revit.reports.Services
         /// </summary>
         /// <param name="projectData">The project data containing image information</param>
         /// <returns>List of sheet IDs that were created</returns>
-        public List<ElementId> GenerateImageReport(ProjectData projectData)
+        public async Task<List<ElementId>> GenerateImageReport(ProjectData projectData)
         {
             Console.WriteLine("[INFO] Starting image report generation process...");
             
@@ -50,33 +51,33 @@ namespace ipx.revit.reports.Services
                 .Where(a => a.AssetType.Equals("image", StringComparison.OrdinalIgnoreCase))
                 .ToList();
                 
-            Console.WriteLine($"[INFO] Found {imageAssets.Count} image assets to process");
+            if (!imageAssets.Any())
+            {
+                Console.WriteLine("[WARNING] No image assets found in project data");
+                return new List<ElementId>();
+            }
             
-            // Create a report sheet
-            ViewSheet reportSheet = _sheetService.CreateSheet("A001", $"{projectData.ProjectName} - Asset Report");
-            Console.WriteLine($"[INFO] Created report sheet: {reportSheet.Name}");
-            
-            // Track the views we'll export to PDF
+            // Create initial sheet
+            string sheetNumber = "A001";
+            ViewSheet reportSheet = _sheetService.CreateSheet(sheetNumber, $"{projectData.ProjectName} - Asset Report 1");
             List<ElementId> viewsToExport = new List<ElementId> { reportSheet.Id };
             
-            // Process each image asset
-            int imageCount = 0;
-            int rowsPerSheet = 2;
+            // Define layout parameters
             int imagesPerRow = 2;
-            double imageSpacing = 1.0; // 1 foot spacing
-            double imageWidth = 3.0;   // 3 feet width
-            double imageHeight = 2.0;  // 2 feet height
+            int rowsPerSheet = 2;
+            double imageWidth = 8.0;  // inches
+            double imageHeight = 6.0; // inches
+            double imageSpacing = 1.0; // inches
             
-            // Calculate starting position (top-left of sheet with some margin)
-            XYZ sheetOrigin = new XYZ(1.0, 10.0, 0.0);
+            // Calculate starting position on sheet (centered)
+            XYZ sheetOrigin = new XYZ(4.0, 8.0, 0); // inches from bottom-left
+            
+            int imageCount = 0;
             
             foreach (var asset in imageAssets)
             {
                 try
                 {
-                    Console.WriteLine($"[INFO] Processing asset: {asset.AssetName}");
-                    
-                    // Download the image
                     string imageUrl = asset.AssetUrlOverride ?? asset.AssetUrl;
                     if (string.IsNullOrEmpty(imageUrl))
                     {
@@ -84,18 +85,17 @@ namespace ipx.revit.reports.Services
                         continue;
                     }
                     
-                    string imagePath = _fileService.DownloadImage(imageUrl, tempFolder);
+                    string imagePath = await _fileService.DownloadFileAsync(imageUrl, Path.Combine(tempFolder, Path.GetFileName(imageUrl)));
                     Console.WriteLine($"[INFO] Downloaded image to: {imagePath}");
                     
                     // Create a drafting view for the image
                     string viewName = $"Image - {asset.AssetName}";
                     ViewDrafting draftingView = _imageService.CreateDraftingView(viewName);
                     
-                    // Import the image into Revit
-                    ImageType imageType = _imageService.ImportImage(imagePath);
-                    
-                    // Place the image on the drafting view
-                    Element placedImage = _imageService.PlaceImageOnView(draftingView, imageType, new XYZ(0, 0, 0));
+                    // Import and place the image
+                    var imageType = _imageService.ImportImage(_doc, imagePath);
+                    var location = new XYZ(0, 0, 0); // Default location at origin
+                    var element = _imageService.PlaceImageOnView(_doc, imageType, draftingView, location, 1.0);
                     
                     // Calculate position on the sheet
                     int row = imageCount / imagesPerRow;
@@ -105,8 +105,8 @@ namespace ipx.revit.reports.Services
                     if (row >= rowsPerSheet)
                     {
                         // Create a new sheet
-                        string sheetNumber = $"A{(viewsToExport.Count + 1):000}";
-                        reportSheet = _sheetService.CreateSheet(sheetNumber, $"{projectData.ProjectName} - Asset Report {viewsToExport.Count + 1}");
+                        string newSheetNumber = $"A{(viewsToExport.Count + 1):000}";
+                        reportSheet = _sheetService.CreateSheet(newSheetNumber, $"{projectData.ProjectName} - Asset Report {viewsToExport.Count + 1}");
                         viewsToExport.Add(reportSheet.Id);
                         
                         // Reset counters
@@ -128,7 +128,7 @@ namespace ipx.revit.reports.Services
                     TextNote.Create(_doc, reportSheet.Id, 
                         new XYZ(position.X, position.Y - 0.5, 0), 
                         asset.AssetName, 
-                        new ElementId(BuiltInParameter.TEXT_FONT_REGULAR));
+                        new ElementId(BuiltInParameter.TEXT_FONT));
                     
                     imageCount++;
                     Console.WriteLine($"[INFO] Successfully processed asset: {asset.AssetName}");

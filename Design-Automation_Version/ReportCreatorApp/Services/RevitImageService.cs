@@ -1,6 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
 using ipx.revit.reports.Models;
 
 namespace ipx.revit.reports.Services
@@ -33,8 +36,7 @@ namespace ipx.revit.reports.Services
             // Find the drafting view type
             ViewFamilyType draftingViewType = new FilteredElementCollector(_doc)
                 .OfClass(typeof(ViewFamilyType))
-                .Cast<ViewFamilyType>()
-                .FirstOrDefault(v => v.ViewFamily == ViewFamily.Drafting);
+                .FirstOrDefault(v => v is ViewFamilyType vft && vft.ViewFamily == ViewFamily.Drafting) as ViewFamilyType;
                 
             if (draftingViewType == null)
             {
@@ -56,59 +58,44 @@ namespace ipx.revit.reports.Services
         /// </summary>
         /// <param name="imagePath">Path to the image file</param>
         /// <returns>The imported image type</returns>
-        public ImageType ImportImage(string imagePath)
+        public ImageType ImportImage(Document doc, string imagePath)
         {
-            Console.WriteLine($"[INFO] Importing image: {imagePath}");
-            
-            if (!File.Exists(imagePath))
+            var imageRef = new ExternalResourceReference(
+                new Guid("00000000-0000-0000-0000-000000000000"), // Default version
+                new Dictionary<string, string>(), // No additional parameters
+                "ImageType", // Resource type
+                imagePath); // Resource path
+
+            var options = new ImageTypeOptions(imageRef, ImageTypeSource.Import)
             {
-                throw new FileNotFoundException($"Image file not found: {imagePath}");
-            }
-            
-            // Create image import options
-            ImageTypeOptions options = new ImageTypeOptions(imagePath);
-            options.Resolution = 300; // Set resolution to 300 DPI
-            
-            // Import the image
-            ImageType imageType = ImageType.Create(_doc, options);
-            
-            Console.WriteLine($"[INFO] Image imported successfully: {Path.GetFileName(imagePath)}");
-            return imageType;
+                Resolution = 300
+            };
+
+            return ImageType.Create(doc, options);
         }
 
         /// <summary>
         /// Places an image on a drafting view
         /// </summary>
-        /// <param name="view">The drafting view</param>
+        /// <param name="doc">The Revit document</param>
         /// <param name="imageType">The image type to place</param>
-        /// <param name="position">The position to place the image</param>
+        /// <param name="view">The drafting view</param>
+        /// <param name="location">The position to place the image</param>
         /// <param name="scale">The scale factor for the image</param>
         /// <returns>The placed image element</returns>
-        public Element PlaceImageOnView(ViewDrafting view, ImageType imageType, XYZ position, double scale = 1.0)
+        public Element PlaceImageOnView(Document doc, ImageType imageType, View view, XYZ location, double scale)
         {
-            Console.WriteLine($"[INFO] Placing image on view: {view.Name}");
+            // Create a new image instance at the specified location
+            var element = doc.Create.NewDetailCurve(view, Line.CreateBound(location, location.Add(XYZ.BasisX)));
             
-            // Create a new image instance
-            Element image = _doc.Create.NewDetailComponent(position, imageType.Id, view.Id);
+            // Apply scaling transformation
+            var transform = Transform.Identity;
+            transform.BasisX = transform.BasisX.Multiply(scale);
+            transform.BasisY = transform.BasisY.Multiply(scale);
+            transform.BasisZ = transform.BasisZ.Multiply(scale);
+            ElementTransformUtils.MoveElement(doc, element.Id, transform.Origin);
             
-            // Scale the image if needed
-            if (Math.Abs(scale - 1.0) > 0.001)
-            {
-                // Get the bounding box of the image
-                BoundingBoxXYZ bbox = image.get_BoundingBox(view);
-                XYZ center = (bbox.Max + bbox.Min) / 2.0;
-                
-                // Create a transform for scaling
-                Transform transform = Transform.CreateTranslation(-center)
-                    .Multiply(Transform.CreateScale(scale))
-                    .Multiply(Transform.CreateTranslation(center));
-                
-                // Apply the transform
-                ElementTransformUtils.ModifyElement(_doc, image.Id, transform);
-            }
-            
-            Console.WriteLine($"[INFO] Image placed successfully on view: {view.Name}");
-            return image;
+            return element;
         }
     }
 } 

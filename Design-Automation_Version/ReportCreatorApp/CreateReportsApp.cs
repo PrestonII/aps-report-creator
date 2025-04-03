@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using Autodesk.Revit.ApplicationServices;
 using Autodesk.Revit.DB;
 using DesignAutomationFramework;
@@ -28,10 +29,10 @@ namespace ipx.revit.reports
       public void HandleDesignAutomationReadyEvent(object sender, DesignAutomationReadyEventArgs e)
       {
          e.Succeeded = true;
-         ExportToPdfs(e.DesignAutomationData);
+         ExportToPdfs(e.DesignAutomationData).Wait();
       }
 
-    public bool ExportToPdfs(DesignAutomationData data)
+    public async Task<bool> ExportToPdfs(DesignAutomationData data)
     {
         if (data == null)
         {
@@ -76,10 +77,10 @@ namespace ipx.revit.reports
             throw new InvalidOperationException("Failed to parse input JSON.");
         }
 
-        return ExportToPdfsImp(rvtApp, doc, projectData);
+        return await ExportToPdfsImp(rvtApp, doc, projectData);
     }
 
-    private bool ExportToPdfsImp(Application rvtApp, Document doc, ProjectData projectData)
+    private async Task<bool> ExportToPdfsImp(Application rvtApp, Document doc, ProjectData projectData)
     {
       using (Transaction tx = new Transaction(doc))
       {
@@ -134,7 +135,7 @@ namespace ipx.revit.reports
             ReportGenerationService reportService = new ReportGenerationService(doc, username, password);
             
             // Generate the image report
-            List<ElementId> sheetIds = reportService.GenerateImageReport(projectData);
+            List<ElementId> sheetIds = await reportService.GenerateImageReport(projectData);
             
             // Export the sheets to PDF
             string outputFileName = projectData.OutputFileName ?? "AssetReport";
