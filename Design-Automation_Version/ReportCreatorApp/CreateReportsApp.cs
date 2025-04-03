@@ -5,8 +5,6 @@ using System.Linq;
 using Autodesk.Revit.ApplicationServices;
 using Autodesk.Revit.DB;
 using DesignAutomationFramework;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using ipx.revit.reports.Models;
 using ipx.revit.reports.Services;
 
@@ -68,44 +66,17 @@ namespace ipx.revit.reports
 
         Console.WriteLine("[INFO] Revit document opened successfully.");
 
-        // Parse the input JSON file
-        ProjectData projectData = ParseInputJson("params.json");
+        // Validate and parse the input JSON file
+        JsonValidationService jsonValidationService = new JsonValidationService();
+        ProjectData projectData = jsonValidationService.ValidateAndParseProjectData("params.json");
+        
         if (projectData == null)
         {
             Console.WriteLine("[ERROR] Failed to parse input JSON.");
             throw new InvalidOperationException("Failed to parse input JSON.");
         }
 
-        Console.WriteLine($"[INFO] Successfully parsed project data for project: {projectData.ProjectName}");
-        Console.WriteLine($"[INFO] Report type: {projectData.ReportType}");
-        Console.WriteLine($"[INFO] Number of view types to export: {projectData.ViewTypes.Count}");
-        Console.WriteLine($"[INFO] Found {projectData.ImageData.Count} image assets in the input JSON");
-
         return ExportToPdfsImp(rvtApp, doc, projectData);
-    }
-
-    private ProjectData ParseInputJson(string jsonPath)
-    {
-        try
-        {
-            if (!File.Exists(jsonPath))
-            {
-                Console.WriteLine($"[WARNING] Input JSON file not found at: {jsonPath}");
-                return null;
-            }
-
-            string jsonContent = File.ReadAllText(jsonPath);
-            Console.WriteLine($"[DEBUG] Raw JSON content: {jsonContent}");
-
-            ProjectData projectData = JsonConvert.DeserializeObject<ProjectData>(jsonContent);
-            return projectData;
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[ERROR] Exception parsing JSON: {ex.Message}");
-            Console.WriteLine($"[ERROR] Stack trace: {ex.StackTrace}");
-            return null;
-        }
     }
 
     private bool ExportToPdfsImp(Application rvtApp, Document doc, ProjectData projectData)
@@ -114,86 +85,73 @@ namespace ipx.revit.reports
       {
         tx.Start("Export PDF");
 
-        // Get all views that match the specified view types
-        List<View> views = new FilteredElementCollector(doc)
-            .OfClass(typeof(View))
-            .Cast<View>()
-            .Where(vw => !vw.IsTemplate && vw.CanBePrinted && projectData.ViewTypes.Contains(vw.ViewType))
-            .ToList();
-
-        Console.WriteLine($"[INFO] Found {views.Count} views matching the specified view types");
-
-        // Apply view filters if specified
-        if (projectData.ViewFilters != null && projectData.ViewFilters.Count > 0)
+        try
         {
-            Console.WriteLine($"[INFO] Applying {projectData.ViewFilters.Count} view filters");
-            foreach (var filter in projectData.ViewFilters)
+            Console.WriteLine("[INFO] Starting report generation process...");
+
+            // Get all views that match the specified view types
+            List<View> views = new FilteredElementCollector(doc)
+                .OfClass(typeof(View))
+                .Cast<View>()
+                .Where(vw => !vw.IsTemplate && vw.CanBePrinted && projectData.ViewTypes.Contains(vw.ViewType))
+                .ToList();
+
+            Console.WriteLine($"[INFO] Found {views.Count} views matching the specified view types");
+
+            // Apply view filters if specified
+            if (projectData.ViewFilters != null && projectData.ViewFilters.Count > 0)
             {
-                Console.WriteLine($"[INFO] Applying filter: {filter.Name} ({filter.Type})");
-                // Apply filter logic here
-                // This would depend on the specific filter types and how they should be applied
+                Console.WriteLine($"[INFO] Applying {projectData.ViewFilters.Count} view filters");
+                foreach (var filter in projectData.ViewFilters)
+                {
+                    Console.WriteLine($"[INFO] Applying filter: {filter.Name} ({filter.Type})");
+                    // Apply filter logic here
+                    // This would depend on the specific filter types and how they should be applied
+                }
             }
-        }
 
-        // Limit the number of views if specified
-        if (projectData.MaxViews > 0 && views.Count > projectData.MaxViews)
-        {
-            Console.WriteLine($"[INFO] Limiting views from {views.Count} to {projectData.MaxViews}");
-            views = views.Take(projectData.MaxViews).ToList();
-        }
+            // Limit the number of views if specified
+            if (projectData.MaxViews > 0 && views.Count > projectData.MaxViews)
+            {
+                Console.WriteLine($"[INFO] Limiting views from {views.Count} to {projectData.MaxViews}");
+                views = views.Take(projectData.MaxViews).ToList();
+            }
 
-        // Create FileService with credentials from the project data
-        string username = projectData.Authentication?.Username;
-        string password = projectData.Authentication?.Password;
-        
-        if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
-        {
-            Console.WriteLine("[WARNING] Authentication credentials not provided. Image downloading may fail.");
-        }
-        else
-        {
-            Console.WriteLine($"[INFO] Using provided authentication credentials for user: {username}");
-        }
-        
-        FileService fileService = new FileService(username, password);
-        
-        // Create a temporary folder for downloaded images
-        string tempFolder = Path.Combine(Path.GetTempPath(), "RevitImages");
-        Directory.CreateDirectory(tempFolder);
-        
-        // Filter for image assets only
-        var imageAssets = projectData.ImageData
-            .Where(a => a.AssetType.Equals("image", StringComparison.OrdinalIgnoreCase))
-            .ToList();
+            // Get authentication credentials
+            string username = projectData.Authentication?.Username;
+            string password = projectData.Authentication?.Password;
             
-        Console.WriteLine($"[INFO] Found {imageAssets.Count} image assets to process");
-        
-        // TODO: Process assets and place images on sheets
-        // This will be implemented in the next steps
-
-        // Export the views to PDF
-        if (views.Count > 0)
-        {
-            IList<ElementId> viewIds = views.Select(v => v.Id).ToList();
+            if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
+            {
+                Console.WriteLine("[WARNING] Authentication credentials not provided. Image downloading may fail.");
+            }
+            else
+            {
+                Console.WriteLine($"[INFO] Using provided authentication credentials for user: {username}");
+            }
             
-            PDFExportOptions options = new PDFExportOptions();
-            options.FileName = projectData.OutputFileName ?? "result";
-            options.Combine = true;
+            // Create the report generation service
+            ReportGenerationService reportService = new ReportGenerationService(doc, username, password);
             
-            string workingFolder = Directory.GetCurrentDirectory();
-            Console.WriteLine($"[INFO] Exporting {viewIds.Count} views to PDF in folder: {workingFolder}");
+            // Generate the image report
+            List<ElementId> sheetIds = reportService.GenerateImageReport(projectData);
             
-            doc.Export(workingFolder, viewIds, options);
-            Console.WriteLine($"[INFO] PDF export completed successfully");
+            // Export the sheets to PDF
+            string outputFileName = projectData.OutputFileName ?? "AssetReport";
+            reportService.ExportSheetsToPdf(sheetIds, outputFileName);
+            
+            Console.WriteLine("[INFO] Report generation process completed successfully");
+            tx.Commit();
+            return true;
         }
-        else
+        catch (Exception ex)
         {
-            Console.WriteLine("[WARNING] No views found matching the specified criteria");
+            Console.WriteLine($"[ERROR] Exception during report generation: {ex.Message}");
+            Console.WriteLine($"[ERROR] Stack trace: {ex.StackTrace}");
+            tx.RollBack();
+            return false;
         }
-        
-        tx.RollBack();
       }
-      return true;
     }
   }
 }
