@@ -18,6 +18,7 @@ namespace ipx.revit.reports.Services
         private readonly RevitImageService _imageService;
         private readonly RevitSheetService _sheetService;
         private readonly FileService _fileService;
+        private readonly LoggingService _logger;
         
         /// <summary>
         /// Initializes a new instance of the ReportGenerationService class
@@ -25,11 +26,13 @@ namespace ipx.revit.reports.Services
         /// <param name="doc">The Revit document</param>
         /// <param name="username">Username for API authentication</param>
         /// <param name="password">Password for API authentication</param>
-        public ReportGenerationService(Document doc, string username, string password)
+        /// <param name="environment">The environment setting for logging</param>
+        public ReportGenerationService(Document doc, string username, string password, string environment = "development")
         {
             _doc = doc ?? throw new ArgumentNullException(nameof(doc));
-            _imageService = new RevitImageService(doc);
-            _sheetService = new RevitSheetService(doc);
+            _logger = new LoggingService(environment);
+            _imageService = new RevitImageService(doc, environment);
+            _sheetService = new RevitSheetService(doc, environment);
             _fileService = new FileService(username, password);
         }
         
@@ -40,7 +43,7 @@ namespace ipx.revit.reports.Services
         /// <returns>List of sheet IDs that were created</returns>
         public async Task<List<ElementId>> GenerateImageReport(ProjectData projectData)
         {
-            Console.WriteLine("[INFO] Starting image report generation process...");
+            _logger.Log("Starting image report generation process...");
             
             // Create a temporary folder for downloaded images
             string tempFolder = Path.Combine(Path.GetTempPath(), "RevitImages");
@@ -53,7 +56,7 @@ namespace ipx.revit.reports.Services
                 
             if (!imageAssets.Any())
             {
-                Console.WriteLine("[WARNING] No image assets found in project data");
+                _logger.LogWarning("No image assets found in project data");
                 return new List<ElementId>();
             }
             
@@ -81,12 +84,12 @@ namespace ipx.revit.reports.Services
                     string imageUrl = asset.AssetUrlOverride ?? asset.AssetUrl;
                     if (string.IsNullOrEmpty(imageUrl))
                     {
-                        Console.WriteLine($"[WARNING] No URL found for asset: {asset.AssetName}. Skipping.");
+                        _logger.LogWarning($"No URL found for asset: {asset.AssetName}. Skipping.");
                         continue;
                     }
                     
                     string imagePath = await _fileService.DownloadFileAsync(imageUrl, Path.Combine(tempFolder, Path.GetFileName(imageUrl)));
-                    Console.WriteLine($"[INFO] Downloaded image to: {imagePath}");
+                    _logger.Log($"Downloaded image to: {imagePath}");
                     
                     // Create a drafting view for the image
                     string viewName = $"Image - {asset.AssetName}";
@@ -131,16 +134,16 @@ namespace ipx.revit.reports.Services
                         new ElementId(BuiltInParameter.TEXT_FONT));
                     
                     imageCount++;
-                    Console.WriteLine($"[INFO] Successfully processed asset: {asset.AssetName}");
+                    _logger.Log($"Successfully processed asset: {asset.AssetName}");
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[ERROR] Failed to process asset {asset.AssetName}: {ex.Message}");
+                    _logger.LogError($"Failed to process asset {asset.AssetName}", ex);
                     // Continue with the next asset
                 }
             }
             
-            Console.WriteLine($"[INFO] Image report generation completed with {viewsToExport.Count} sheets");
+            _logger.Log($"Image report generation completed with {viewsToExport.Count} sheets");
             return viewsToExport;
         }
         
@@ -154,7 +157,7 @@ namespace ipx.revit.reports.Services
         {
             if (sheetIds == null || sheetIds.Count == 0)
             {
-                Console.WriteLine("[WARNING] No sheets to export");
+                _logger.LogWarning("No sheets to export");
                 return false;
             }
             
@@ -165,16 +168,16 @@ namespace ipx.revit.reports.Services
                 options.Combine = true;
                 
                 string workingFolder = Directory.GetCurrentDirectory();
-                Console.WriteLine($"[INFO] Exporting {sheetIds.Count} sheets to PDF in folder: {workingFolder}");
+                _logger.Log($"Exporting {sheetIds.Count} sheets to PDF in folder: {workingFolder}");
                 
                 _doc.Export(workingFolder, sheetIds, options);
-                Console.WriteLine($"[INFO] PDF export completed successfully: {options.FileName}.pdf");
+                _logger.Log($"PDF export completed successfully: {options.FileName}.pdf");
                 
                 return true;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ERROR] Failed to export PDF: {ex.Message}");
+                _logger.LogError("Failed to export PDF", ex);
                 return false;
             }
         }

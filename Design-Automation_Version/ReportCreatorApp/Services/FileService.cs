@@ -10,18 +10,22 @@ namespace ipx.revit.reports.Services
         private readonly string _username;
         private readonly string _password;
         private readonly HttpClient _httpClient;
+        private readonly LoggingService _logger;
 
-        public FileService(string username, string password)
+        public FileService(string username, string password, string environment = "development")
         {
             _username = username ?? throw new ArgumentNullException(nameof(username));
             _password = password ?? throw new ArgumentNullException(nameof(password));
             _httpClient = new HttpClient();
+            _logger = new LoggingService(environment);
         }
 
         public async Task<string> DownloadFileAsync(string url, string localPath)
         {
             try
             {
+                _logger.LogDebug($"Starting download from URL: {url} to local path: {localPath}");
+                
                 // Add basic authentication if needed
                 if (!string.IsNullOrEmpty(_username) && !string.IsNullOrEmpty(_password))
                 {
@@ -41,11 +45,12 @@ namespace ipx.revit.reports.Services
                     await response.Content.CopyToAsync(fileStream);
                 }
 
+                _logger.Log($"File downloaded successfully to: {localPath}");
                 return localPath;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ERROR] Failed to download file from {url}: {ex.Message}");
+                _logger.LogError($"Failed to download file from {url}", ex);
                 throw;
             }
         }
@@ -57,11 +62,12 @@ namespace ipx.revit.reports.Services
                 if (File.Exists(filePath))
                 {
                     File.Delete(filePath);
+                    _logger.LogDebug($"File deleted successfully: {filePath}");
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ERROR] Failed to delete file {filePath}: {ex.Message}");
+                _logger.LogError($"Failed to delete file {filePath}", ex);
                 throw;
             }
         }
@@ -73,11 +79,12 @@ namespace ipx.revit.reports.Services
                 if (Directory.Exists(directoryPath))
                 {
                     Directory.Delete(directoryPath, true);
+                    _logger.LogDebug($"Directory deleted successfully: {directoryPath}");
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ERROR] Failed to delete directory {directoryPath}: {ex.Message}");
+                _logger.LogError($"Failed to delete directory {directoryPath}", ex);
                 throw;
             }
         }

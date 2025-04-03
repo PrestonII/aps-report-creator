@@ -10,6 +10,13 @@ namespace ipx.revit.reports.Services
     /// </summary>
     public class JsonValidationService
     {
+        private readonly LoggingService _logger;
+
+        public JsonValidationService(string environment = "development")
+        {
+            _logger = new LoggingService(environment);
+        }
+
         /// <summary>
         /// Validates and parses the input JSON file
         /// </summary>
@@ -22,58 +29,57 @@ namespace ipx.revit.reports.Services
                 // Check if file exists
                 if (!File.Exists(jsonPath))
                 {
-                    Console.WriteLine($"[WARNING] Input JSON file not found at: {jsonPath}");
+                    _logger.LogWarning($"Input JSON file not found at: {jsonPath}");
                     return null;
                 }
 
                 // Read and parse JSON content
                 string jsonContent = File.ReadAllText(jsonPath);
-                Console.WriteLine($"[DEBUG] Raw JSON content: {jsonContent}");
+                _logger.LogDebug($"Raw JSON content: {jsonContent}");
 
                 ProjectData projectData = JsonConvert.DeserializeObject<ProjectData>(jsonContent);
                 
                 // Validate required fields
                 if (projectData == null)
                 {
-                    Console.WriteLine("[ERROR] Failed to deserialize JSON to ProjectData");
+                    _logger.LogError("Failed to deserialize JSON to ProjectData");
                     return null;
                 }
                 
                 if (string.IsNullOrWhiteSpace(projectData.ProjectName))
                 {
-                    Console.WriteLine("[WARNING] Project name is missing in the input JSON");
+                    _logger.LogWarning("Project name is missing in the input JSON");
                 }
                 
                 if (projectData.ViewTypes == null || projectData.ViewTypes.Count == 0)
                 {
-                    Console.WriteLine("[WARNING] No view types specified in the input JSON");
+                    _logger.LogWarning("No view types specified in the input JSON");
                 }
                 
                 if (projectData.ImageData == null || projectData.ImageData.Count == 0)
                 {
-                    Console.WriteLine("[WARNING] No image data found in the input JSON");
+                    _logger.LogWarning("No image data found in the input JSON");
                 }
                 
                 // Log successful parsing
-                Console.WriteLine($"[INFO] Successfully parsed project data for project: {projectData.ProjectName}");
-                Console.WriteLine($"[INFO] Report type: {projectData.ReportType}");
+                _logger.Log($"Successfully parsed project data for project: {projectData.ProjectName}");
+                _logger.Log($"Report type: {projectData.ReportType}");
                 
                 if (projectData.ViewTypes != null)
                 {
-                    Console.WriteLine($"[INFO] Number of view types to export: {projectData.ViewTypes.Count}");
+                    _logger.Log($"Number of view types to export: {projectData.ViewTypes.Count}");
                 }
                 
                 if (projectData.ImageData != null)
                 {
-                    Console.WriteLine($"[INFO] Found {projectData.ImageData.Count} image assets in the input JSON");
+                    _logger.Log($"Found {projectData.ImageData.Count} image assets in the input JSON");
                 }
                 
                 return projectData;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ERROR] Exception parsing JSON: {ex.Message}");
-                Console.WriteLine($"[ERROR] Stack trace: {ex.StackTrace}");
+                _logger.LogError("Exception parsing JSON", ex);
                 return null;
             }
         }
@@ -87,13 +93,13 @@ namespace ipx.revit.reports.Services
         {
             if (projectData == null)
             {
-                Console.WriteLine("[ERROR] Project data is null");
+                _logger.LogError("Project data is null");
                 return false;
             }
             
             if (projectData.Authentication == null)
             {
-                Console.WriteLine("[WARNING] Authentication information is missing");
+                _logger.LogWarning("Authentication information is missing");
                 return false;
             }
             
@@ -102,17 +108,17 @@ namespace ipx.revit.reports.Services
             
             if (string.IsNullOrEmpty(username))
             {
-                Console.WriteLine("[WARNING] Authentication username is missing");
+                _logger.LogWarning("Authentication username is missing");
                 return false;
             }
             
             if (string.IsNullOrEmpty(password))
             {
-                Console.WriteLine("[WARNING] Authentication password is missing");
+                _logger.LogWarning("Authentication password is missing");
                 return false;
             }
             
-            Console.WriteLine($"[INFO] Authentication information is valid for user: {username}");
+            _logger.Log($"Authentication information is valid for user: {username}");
             return true;
         }
     }

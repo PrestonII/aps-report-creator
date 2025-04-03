@@ -11,14 +11,17 @@ namespace ipx.revit.reports.Services
     public class RevitSheetService
     {
         private readonly Document _doc;
+        private readonly LoggingService _logger;
 
         /// <summary>
         /// Initializes a new instance of the RevitSheetService class
         /// </summary>
         /// <param name="doc">The Revit document</param>
-        public RevitSheetService(Document doc)
+        /// <param name="environment">The environment setting for logging</param>
+        public RevitSheetService(Document doc, string environment = "development")
         {
             _doc = doc ?? throw new ArgumentNullException(nameof(doc));
+            _logger = new LoggingService(environment);
         }
 
         /// <summary>
@@ -29,12 +32,13 @@ namespace ipx.revit.reports.Services
         /// <returns>The created sheet</returns>
         public ViewSheet CreateSheet(string sheetNumber, string sheetName)
         {
-            Console.WriteLine($"[INFO] Creating sheet: {sheetNumber} - {sheetName}");
+            _logger.Log($"Creating sheet: {sheetNumber} - {sheetName}");
             
             // Find a title block
             FamilySymbol titleBlock = FindTitleBlock();
             if (titleBlock == null)
             {
+                _logger.LogError("Could not find a title block");
                 throw new InvalidOperationException("Could not find a title block");
             }
             
@@ -43,7 +47,7 @@ namespace ipx.revit.reports.Services
             sheet.SheetNumber = sheetNumber;
             sheet.Name = sheetName;
             
-            Console.WriteLine($"[INFO] Sheet created successfully: {sheet.SheetNumber} - {sheet.Name}");
+            _logger.Log($"Sheet created successfully: {sheet.SheetNumber} - {sheet.Name}");
             return sheet;
         }
 
@@ -56,18 +60,19 @@ namespace ipx.revit.reports.Services
         /// <returns>The created viewport</returns>
         public Viewport PlaceViewOnSheet(ViewSheet sheet, View view, XYZ position)
         {
-            Console.WriteLine($"[INFO] Placing view {view.Name} on sheet {sheet.Name}");
+            _logger.Log($"Placing view {view.Name} on sheet {sheet.Name}");
             
             // Check if the view can be placed on a sheet
             if (!view.ViewType.ToString().Contains("Drafting"))
             {
+                _logger.LogError($"View {view.Name} cannot be placed on a sheet");
                 throw new InvalidOperationException($"View {view.Name} cannot be placed on a sheet");
             }
             
             // Create the viewport
             Viewport viewport = Viewport.Create(_doc, sheet.Id, view.Id, position);
             
-            Console.WriteLine($"[INFO] View placed successfully on sheet");
+            _logger.Log("View placed successfully on sheet");
             return viewport;
         }
 
@@ -85,7 +90,7 @@ namespace ipx.revit.reports.Services
                 
             if (titleBlocks == null)
             {
-                Console.WriteLine("[WARNING] No title blocks found in the document");
+                _logger.LogWarning("No title blocks found in the document");
                 return null;
             }
             

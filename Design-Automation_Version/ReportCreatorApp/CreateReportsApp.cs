@@ -15,6 +15,8 @@ namespace ipx.revit.reports
    [Autodesk.Revit.Attributes.Transaction(Autodesk.Revit.Attributes.TransactionMode.Manual)]
    public class CreateReportsApp : IExternalDBApplication
    {
+      private LoggingService _logger = null!;
+
       public ExternalDBApplicationResult OnStartup(ControlledApplication app)
       {
          DesignAutomationBridge.DesignAutomationReadyEvent += HandleDesignAutomationReadyEvent;
@@ -36,36 +38,36 @@ namespace ipx.revit.reports
     {
         if (data == null)
         {
-            Console.WriteLine("[ERROR] DesignAutomationData is null.");
+            _logger.LogError("DesignAutomationData is null.");
             throw new ArgumentNullException(nameof(data));
         }
 
-        Console.WriteLine("[INFO] Starting ExportToPdfs...");
+        _logger.Log("Starting ExportToPdfs...");
 
         Application rvtApp = data.RevitApp;
         if (rvtApp == null)
         {
-            Console.WriteLine("[ERROR] RevitApp is null.");
+            _logger.LogError("RevitApp is null.");
             throw new InvalidDataException(nameof(rvtApp));
         }
 
         string modelPath = data.FilePath;
-        Console.WriteLine($"[DEBUG] modelPath from DesignAutomationData.FilePath: '{modelPath}'");
+        _logger.LogDebug($"modelPath from DesignAutomationData.FilePath: '{modelPath}'");
 
         if (String.IsNullOrWhiteSpace(modelPath))
         {
-            Console.WriteLine("[ERROR] modelPath is null or whitespace.");
+            _logger.LogError("modelPath is null or whitespace.");
             throw new InvalidDataException(nameof(modelPath));
         }
 
         Document doc = data.RevitDoc;
         if (doc == null)
         {
-            Console.WriteLine("[ERROR] RevitDoc is null. Could not open document.");
+            _logger.LogError("RevitDoc is null. Could not open document.");
             throw new InvalidOperationException("Could not open document.");
         }
 
-        Console.WriteLine("[INFO] Revit document opened successfully.");
+        _logger.Log("Revit document opened successfully.");
 
         // Validate and parse the input JSON file
         JsonValidationService jsonValidationService = new JsonValidationService();
@@ -73,9 +75,12 @@ namespace ipx.revit.reports
         
         if (projectData == null)
         {
-            Console.WriteLine("[ERROR] Failed to parse input JSON.");
+            _logger.LogError("Failed to parse input JSON.");
             throw new InvalidOperationException("Failed to parse input JSON.");
         }
+
+        // Initialize logger with environment setting
+        _logger = new LoggingService(projectData.Environment);
 
         return await ExportToPdfsImp(rvtApp, doc, projectData);
     }
@@ -88,7 +93,7 @@ namespace ipx.revit.reports
 
         try
         {
-            Console.WriteLine("[INFO] Starting report generation process...");
+            _logger.Log("Starting report generation process...");
 
             // Get all views that match the specified view types
             List<View> views = new FilteredElementCollector(doc)
@@ -97,15 +102,15 @@ namespace ipx.revit.reports
                 .Where(vw => !vw.IsTemplate && vw.CanBePrinted && projectData.ViewTypes.Contains(vw.ViewType.ToString()))
                 .ToList();
 
-            Console.WriteLine($"[INFO] Found {views.Count} views matching the specified view types");
+            _logger.Log($"Found {views.Count} views matching the specified view types");
 
             // Apply view filters if specified
             if (projectData.ViewFilters != null && projectData.ViewFilters.Count > 0)
             {
-                Console.WriteLine($"[INFO] Applying {projectData.ViewFilters.Count} view filters");
+                _logger.Log($"Applying {projectData.ViewFilters.Count} view filters");
                 foreach (var filter in projectData.ViewFilters)
                 {
-                    Console.WriteLine($"[INFO] Applying filter: {filter.Name} ({filter.Type})");
+                    _logger.Log($"Applying filter: {filter.Name} ({filter.Type})");
                     // Apply filter logic here
                     // This would depend on the specific filter types and how they should be applied
                 }
@@ -114,7 +119,7 @@ namespace ipx.revit.reports
             // Limit the number of views if specified
             if (projectData.MaxViews > 0 && views.Count > projectData.MaxViews)
             {
-                Console.WriteLine($"[INFO] Limiting views from {views.Count} to {projectData.MaxViews}");
+                _logger.Log($"Limiting views from {views.Count} to {projectData.MaxViews}");
                 views = views.Take(projectData.MaxViews).ToList();
             }
 
@@ -124,11 +129,11 @@ namespace ipx.revit.reports
             
             if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
             {
-                Console.WriteLine("[WARNING] Authentication credentials not provided. Image downloading may fail.");
+                _logger.LogWarning("Authentication credentials not provided. Image downloading may fail.");
             }
             else
             {
-                Console.WriteLine($"[INFO] Using provided authentication credentials for user: {username}");
+                _logger.Log($"Using provided authentication credentials for user: {username}");
             }
             
             // Create the report generation service
@@ -141,14 +146,13 @@ namespace ipx.revit.reports
             string outputFileName = projectData.OutputFileName ?? "AssetReport";
             reportService.ExportSheetsToPdf(sheetIds, outputFileName);
             
-            Console.WriteLine("[INFO] Report generation process completed successfully");
+            _logger.Log("Report generation process completed successfully");
             tx.Commit();
             return true;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[ERROR] Exception during report generation: {ex.Message}");
-            Console.WriteLine($"[ERROR] Stack trace: {ex.StackTrace}");
+            _logger.LogError("Exception during report generation", ex);
             tx.RollBack();
             return false;
         }

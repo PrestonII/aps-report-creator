@@ -14,14 +14,17 @@ namespace ipx.revit.reports.Services
     public class RevitImageService
     {
         private readonly Document _doc;
+        private readonly LoggingService _logger;
 
         /// <summary>
         /// Initializes a new instance of the RevitImageService class
         /// </summary>
         /// <param name="doc">The Revit document</param>
-        public RevitImageService(Document doc)
+        /// <param name="environment">The environment setting for logging</param>
+        public RevitImageService(Document doc, string environment = "development")
         {
             _doc = doc ?? throw new ArgumentNullException(nameof(doc));
+            _logger = new LoggingService(environment);
         }
 
         /// <summary>
@@ -31,7 +34,7 @@ namespace ipx.revit.reports.Services
         /// <returns>The created drafting view</returns>
         public ViewDrafting CreateDraftingView(string viewName)
         {
-            Console.WriteLine($"[INFO] Creating drafting view: {viewName}");
+            _logger.Log($"Creating drafting view: {viewName}");
             
             // Find the drafting view type
             ViewFamilyType draftingViewType = new FilteredElementCollector(_doc)
@@ -40,6 +43,7 @@ namespace ipx.revit.reports.Services
                 
             if (draftingViewType == null)
             {
+                _logger.LogError("Could not find drafting view type");
                 throw new InvalidOperationException("Could not find drafting view type");
             }
             
@@ -49,7 +53,7 @@ namespace ipx.revit.reports.Services
             // Set the name of the view
             draftingView.Name = viewName;
             
-            Console.WriteLine($"[INFO] Drafting view created successfully: {draftingView.Name}");
+            _logger.Log($"Drafting view created successfully: {draftingView.Name}");
             return draftingView;
         }
 
@@ -60,6 +64,8 @@ namespace ipx.revit.reports.Services
         /// <returns>The imported image type</returns>
         public ImageType ImportImage(Document doc, string imagePath)
         {
+            _logger.LogDebug($"Importing image from path: {imagePath}");
+            
             var imageRef = new ExternalResourceReference(
                 new Guid("00000000-0000-0000-0000-000000000000"), // Default version
                 new Dictionary<string, string>(), // No additional parameters
@@ -71,6 +77,7 @@ namespace ipx.revit.reports.Services
                 Resolution = 300
             };
 
+            _logger.Log("Image import options created successfully");
             return ImageType.Create(doc, options);
         }
 
@@ -85,6 +92,8 @@ namespace ipx.revit.reports.Services
         /// <returns>The placed image element</returns>
         public Element PlaceImageOnView(Document doc, ImageType imageType, View view, XYZ location, double scale)
         {
+            _logger.LogDebug($"Placing image on view at location: ({location.X}, {location.Y}, {location.Z}) with scale: {scale}");
+            
             // Create a new image instance at the specified location
             var element = doc.Create.NewDetailCurve(view, Line.CreateBound(location, location.Add(XYZ.BasisX)));
             
@@ -95,6 +104,7 @@ namespace ipx.revit.reports.Services
             transform.BasisZ = transform.BasisZ.Multiply(scale);
             ElementTransformUtils.MoveElement(doc, element.Id, transform.Origin);
             
+            _logger.Log("Image placed successfully on view");
             return element;
         }
     }

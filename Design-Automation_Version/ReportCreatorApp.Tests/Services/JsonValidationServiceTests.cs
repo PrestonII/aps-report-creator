@@ -38,6 +38,7 @@ namespace ipx.revit.reports.Tests.Services
                 'ViewTypes': ['FloorPlan', 'Section'],
                 'MaxViews': 10,
                 'OutputFileName': 'test_report.pdf',
+                'Environment': 'development',
                 'Authentication': {
                     'Username': 'test_user',
                     'Password': 'test_pass'
@@ -57,6 +58,7 @@ namespace ipx.revit.reports.Tests.Services
             Assert.That(result.ReportType, Is.EqualTo("Asset Report"));
             Assert.That(result.MaxViews, Is.EqualTo(10));
             Assert.That(result.OutputFileName, Is.EqualTo("test_report.pdf"));
+            Assert.That(result.Environment, Is.EqualTo("development"));
             Assert.That(result.Authentication!.Username, Is.EqualTo("test_user"));
             Assert.That(result.Authentication.Password, Is.EqualTo("test_pass"));
 
@@ -115,7 +117,8 @@ namespace ipx.revit.reports.Tests.Services
                 'ReportType': 'Asset Report',
                 'ViewTypes': ['FloorPlan', 'Section', 'ThreeD'],
                 'MaxViews': 10,
-                'OutputFileName': 'test_report.pdf'
+                'OutputFileName': 'test_report.pdf',
+                'Environment': 'development'
             }}";
             
             var jsonPath = Path.Combine(_testDataPath, "valid_project_with_viewtypes.json");
@@ -226,6 +229,7 @@ namespace ipx.revit.reports.Tests.Services
                 },
                 MaxViews = 10,
                 OutputFileName = "TestReport",
+                Environment = "development",
                 Authentication = new AuthenticationInfo
                 {
                     Username = "test_user",
