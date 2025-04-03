@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using Autodesk.Revit.DB;
 using Newtonsoft.Json;
 
 namespace ipx.revit.reports.Models
@@ -10,16 +9,16 @@ namespace ipx.revit.reports.Models
     public class ProjectData
     {
         [JsonProperty("projectName")]
-        public string ProjectName { get; set; }
+        public string ProjectName { get; set; } = string.Empty;
         
         [JsonProperty("projectNumber")]
-        public string ProjectNumber { get; set; }
+        public string ProjectNumber { get; set; } = string.Empty;
         
         [JsonProperty("reportType")]
-        public string ReportType { get; set; }
+        public string ReportType { get; set; } = string.Empty;
         
         [JsonProperty("viewTypes")]
-        public List<ViewType> ViewTypes { get; set; } = new List<ViewType>();
+        public List<string> ViewTypes { get; set; } = new List<string>();
         
         [JsonProperty("viewFilters")]
         public List<ViewFilter> ViewFilters { get; set; } = new List<ViewFilter>();
@@ -28,10 +27,10 @@ namespace ipx.revit.reports.Models
         public int MaxViews { get; set; } = 0;
         
         [JsonProperty("outputFileName")]
-        public string OutputFileName { get; set; }
+        public string OutputFileName { get; set; } = string.Empty;
         
         [JsonProperty("authentication")]
-        public AuthenticationInfo Authentication { get; set; }
+        public AuthenticationInfo? Authentication { get; set; }
         
         [JsonProperty("imageData")]
         public List<AssetData> ImageData { get; set; } = new List<AssetData>();
@@ -43,9 +42,9 @@ namespace ipx.revit.reports.Models
     public class AuthenticationInfo
     {
         [JsonProperty("username")]
-        public string Username { get; set; }
+        public string Username { get; set; } = string.Empty;
         
         [JsonProperty("password")]
-        public string Password { get; set; }
+        public string Password { get; set; } = string.Empty;
     }
 } 

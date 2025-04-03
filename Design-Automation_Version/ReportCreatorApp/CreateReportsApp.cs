@@ -94,7 +94,7 @@ namespace ipx.revit.reports
             List<View> views = new FilteredElementCollector(doc)
                 .OfClass(typeof(View))
                 .Cast<View>()
-                .Where(vw => !vw.IsTemplate && vw.CanBePrinted && projectData.ViewTypes.Contains(vw.ViewType))
+                .Where(vw => !vw.IsTemplate && vw.CanBePrinted && projectData.ViewTypes.Contains(vw.ViewType.ToString()))
                 .ToList();
 
             Console.WriteLine($"[INFO] Found {views.Count} views matching the specified view types");

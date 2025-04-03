@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using NUnit.Framework;
 using ipx.revit.reports.Models;
@@ -10,8 +11,8 @@ namespace ipx.revit.reports.Tests.Services
     [TestFixture]
     public class JsonValidationServiceTests
     {
-        private JsonValidationService _service;
-        private string _testDataPath;
+        private JsonValidationService _service = null!;
+        private string _testDataPath = null!;
 
         [SetUp]
         public void Setup()
@@ -30,48 +31,109 @@ namespace ipx.revit.reports.Tests.Services
         public void ValidateAndParseProjectData_ValidJson_ReturnsProjectData()
         {
             // Arrange
-            var validJson = CreateValidProjectDataJson();
-            var jsonPath = Path.Combine(_testDataPath, "valid_project_data.json");
-            File.WriteAllText(jsonPath, validJson);
+            var jsonContent = @"{
+                'ProjectName': 'Test Project',
+                'ProjectNumber': 'TP-001',
+                'ReportType': 'Asset Report',
+                'ViewTypes': ['FloorPlan', 'Section'],
+                'MaxViews': 10,
+                'OutputFileName': 'test_report.pdf',
+                'Authentication': {
+                    'Username': 'test_user',
+                    'Password': 'test_pass'
+                }
+            }";
+            
+            var jsonPath = Path.Combine(_testDataPath, "valid_project.json");
+            File.WriteAllText(jsonPath, jsonContent);
 
             // Act
             var result = _service.ValidateAndParseProjectData(jsonPath);
 
             // Assert
-            Assert.NotNull(result);
-            Assert.AreEqual("Test Project", result.ProjectName);
-            Assert.AreEqual("2023-001", result.ProjectNumber);
-            Assert.AreEqual("AssetReport", result.ReportType);
-            Assert.AreEqual(2, result.ImageData.Count);
-            Assert.AreEqual("test_user", result.Authentication.Username);
-        }
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result!.ProjectName, Is.EqualTo("Test Project"));
+            Assert.That(result.ProjectNumber, Is.EqualTo("TP-001"));
+            Assert.That(result.ReportType, Is.EqualTo("Asset Report"));
+            Assert.That(result.MaxViews, Is.EqualTo(10));
+            Assert.That(result.OutputFileName, Is.EqualTo("test_report.pdf"));
+            Assert.That(result.Authentication!.Username, Is.EqualTo("test_user"));
+            Assert.That(result.Authentication.Password, Is.EqualTo("test_pass"));
 
-        [Test]
-        public void ValidateAndParseProjectData_FileNotFound_ReturnsNull()
-        {
-            // Arrange
-            var nonExistentPath = Path.Combine(_testDataPath, "non_existent_file.json");
-
-            // Act
-            var result = _service.ValidateAndParseProjectData(nonExistentPath);
-
-            // Assert
-            Assert.Null(result);
+            // Cleanup
+            if (File.Exists(jsonPath))
+            {
+                File.Delete(jsonPath);
+            }
         }
 
         [Test]
         public void ValidateAndParseProjectData_InvalidJson_ReturnsNull()
         {
             // Arrange
-            var invalidJson = "{ this is not valid JSON }";
-            var jsonPath = Path.Combine(_testDataPath, "invalid_json.json");
-            File.WriteAllText(jsonPath, invalidJson);
+            var jsonContent = "{ invalid json content }";
+            var jsonPath = Path.Combine(_testDataPath, "invalid_project.json");
+            File.WriteAllText(jsonPath, jsonContent);
 
             // Act
             var result = _service.ValidateAndParseProjectData(jsonPath);
 
             // Assert
-            Assert.Null(result);
+            Assert.That(result, Is.Null);
+
+            // Cleanup
+            if (File.Exists(jsonPath))
+            {
+                File.Delete(jsonPath);
+            }
+        }
+
+        [Test]
+        public void ValidateAndParseProjectData_NonexistentFile_ReturnsNull()
+        {
+            // Act
+            var result = _service.ValidateAndParseProjectData("nonexistent.json");
+
+            // Assert
+            Assert.That(result, Is.Null);
+        }
+
+        [Test]
+        public void ValidateAndParseProjectData_ValidJsonWithViewTypes_ParsesViewTypesCorrectly()
+        {
+            // Arrange
+            var expectedViewTypes = new List<string>
+            {
+                "FloorPlan",
+                "Section",
+                "ThreeD"
+            };
+
+            var jsonContent = $@"{{
+                'ProjectName': 'Test Project',
+                'ProjectNumber': 'TP-001',
+                'ReportType': 'Asset Report',
+                'ViewTypes': ['FloorPlan', 'Section', 'ThreeD'],
+                'MaxViews': 10,
+                'OutputFileName': 'test_report.pdf'
+            }}";
+            
+            var jsonPath = Path.Combine(_testDataPath, "valid_project_with_viewtypes.json");
+            File.WriteAllText(jsonPath, jsonContent);
+
+            // Act
+            var result = _service.ValidateAndParseProjectData(jsonPath);
+
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result!.ViewTypes, Is.Not.Null);
+            Assert.That(result.ViewTypes, Is.EquivalentTo(expectedViewTypes));
+
+            // Cleanup
+            if (File.Exists(jsonPath))
+            {
+                File.Delete(jsonPath);
+            }
         }
 
         [Test]
@@ -91,7 +153,7 @@ namespace ipx.revit.reports.Tests.Services
             var result = _service.ValidateAuthentication(projectData);
 
             // Assert
-            Assert.IsTrue(result);
+            Assert.That(result, Is.True);
         }
 
         [Test]
@@ -107,7 +169,7 @@ namespace ipx.revit.reports.Tests.Services
             var result = _service.ValidateAuthentication(projectData);
 
             // Assert
-            Assert.IsFalse(result);
+            Assert.That(result, Is.False);
         }
 
         [Test]
@@ -127,7 +189,7 @@ namespace ipx.revit.reports.Tests.Services
             var result = _service.ValidateAuthentication(projectData);
 
             // Assert
-            Assert.IsFalse(result);
+            Assert.That(result, Is.False);
         }
 
         [Test]
@@ -147,7 +209,7 @@ namespace ipx.revit.reports.Tests.Services
             var result = _service.ValidateAuthentication(projectData);
 
             // Assert
-            Assert.IsFalse(result);
+            Assert.That(result, Is.False);
         }
 
         private string CreateValidProjectDataJson()
@@ -157,10 +219,10 @@ namespace ipx.revit.reports.Tests.Services
                 ProjectName = "Test Project",
                 ProjectNumber = "2023-001",
                 ReportType = "AssetReport",
-                ViewTypes = new List<Autodesk.Revit.DB.ViewType> 
+                ViewTypes = new List<string> 
                 { 
-                    Autodesk.Revit.DB.ViewType.FloorPlan, 
-                    Autodesk.Revit.DB.ViewType.Elevation 
+                    "FloorPlan", 
+                    "Elevation" 
                 },
                 MaxViews = 10,
                 OutputFileName = "TestReport",
@@ -171,7 +233,7 @@ namespace ipx.revit.reports.Tests.Services
                 },
                 ImageData = new List<AssetData>
                 {
-                    new AssetData
+                    new()
                     {
                         AssetId = "asset1",
                         Project = "project1",
@@ -179,7 +241,7 @@ namespace ipx.revit.reports.Tests.Services
                         AssetName = "Test Image 1",
                         AssetUrl = "https://example.com/image1.png"
                     },
-                    new AssetData
+                    new()
                     {
                         AssetId = "asset2",
                         Project = "project1",
@@ -191,6 +253,16 @@ namespace ipx.revit.reports.Tests.Services
             };
 
             return JsonConvert.SerializeObject(projectData, Formatting.Indented);
+        }
+
+        [TearDown]
+        public void Cleanup()
+        {
+            // Clean up test directory if it exists
+            if (Directory.Exists(_testDataPath))
+            {
+                Directory.Delete(_testDataPath, true);
+            }
         }
     }
 } 

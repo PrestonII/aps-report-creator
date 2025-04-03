@@ -14,7 +14,7 @@ namespace ipx.revit.reports.Tests.Services
     [TestFixture]
     public class FileServiceTests
     {
-        private string _testDataPath;
+        private string _testDataPath = null!;
 
         [SetUp]
         public void Setup()
@@ -29,7 +29,7 @@ namespace ipx.revit.reports.Tests.Services
         }
 
         [Test]
-        public async Task DownloadImageAsync_ValidUrl_DownloadsImage()
+        public async Task DownloadFileAsync_ValidUrl_DownloadsFile()
         {
             // Arrange
             var mockHttpMessageHandler = new Mock<HttpMessageHandler>();
@@ -50,18 +50,18 @@ namespace ipx.revit.reports.Tests.Services
             // Use reflection to create a FileService with our mocked HttpClient
             var fileService = new FileService("test_user", "test_password");
             var fieldInfo = typeof(FileService).GetField("_httpClient", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            fieldInfo.SetValue(fileService, httpClient);
+            fieldInfo?.SetValue(fileService, httpClient);
 
             var url = "https://example.com/image.png";
-            var destinationFolder = Path.Combine(_testDataPath, "downloads");
+            var destinationPath = Path.Combine(_testDataPath, "downloads", "image.png");
 
             // Act
-            var result = await fileService.DownloadImageAsync(url, destinationFolder);
+            var result = await fileService.DownloadFileAsync(url, destinationPath);
 
             // Assert
-            Assert.IsTrue(File.Exists(result));
-            Assert.IsTrue(result.Contains(destinationFolder));
-            Assert.IsTrue(result.EndsWith("image.png"));
+            Assert.That(File.Exists(result), Is.True);
+            Assert.That(result.Contains(_testDataPath), Is.True);
+            Assert.That(result.EndsWith("image.png"), Is.True);
 
             // Cleanup
             if (File.Exists(result))
@@ -71,49 +71,7 @@ namespace ipx.revit.reports.Tests.Services
         }
 
         [Test]
-        public void DownloadImage_ValidUrl_DownloadsImage()
-        {
-            // Arrange
-            var mockHttpMessageHandler = new Mock<HttpMessageHandler>();
-            mockHttpMessageHandler.Protected()
-                .Setup<Task<HttpResponseMessage>>(
-                    "SendAsync",
-                    ItExpr.IsAny<HttpRequestMessage>(),
-                    ItExpr.IsAny<CancellationToken>()
-                )
-                .ReturnsAsync(new HttpResponseMessage
-                {
-                    StatusCode = HttpStatusCode.OK,
-                    Content = new ByteArrayContent(new byte[] { 0x89, 0x50, 0x4E, 0x47 }) // PNG file header
-                });
-
-            var httpClient = new HttpClient(mockHttpMessageHandler.Object);
-            
-            // Use reflection to create a FileService with our mocked HttpClient
-            var fileService = new FileService("test_user", "test_password");
-            var fieldInfo = typeof(FileService).GetField("_httpClient", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            fieldInfo.SetValue(fileService, httpClient);
-
-            var url = "https://example.com/image.png";
-            var destinationFolder = Path.Combine(_testDataPath, "downloads");
-
-            // Act
-            var result = fileService.DownloadImage(url, destinationFolder);
-
-            // Assert
-            Assert.IsTrue(File.Exists(result));
-            Assert.IsTrue(result.Contains(destinationFolder));
-            Assert.IsTrue(result.EndsWith("image.png"));
-
-            // Cleanup
-            if (File.Exists(result))
-            {
-                File.Delete(result);
-            }
-        }
-
-        [Test]
-        public void DownloadImage_HttpError_ThrowsException()
+        public void DownloadFile_HttpError_ThrowsException()
         {
             // Arrange
             var mockHttpMessageHandler = new Mock<HttpMessageHandler>();
@@ -134,20 +92,20 @@ namespace ipx.revit.reports.Tests.Services
             // Use reflection to create a FileService with our mocked HttpClient
             var fileService = new FileService("test_user", "test_password");
             var fieldInfo = typeof(FileService).GetField("_httpClient", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            fieldInfo.SetValue(fileService, httpClient);
+            fieldInfo?.SetValue(fileService, httpClient);
 
             var url = "https://example.com/nonexistent.png";
-            var destinationFolder = Path.Combine(_testDataPath, "downloads");
+            var destinationPath = Path.Combine(_testDataPath, "downloads", "nonexistent.png");
 
             // Act & Assert
-            Assert.Throws<Exception>(() => fileService.DownloadImage(url, destinationFolder));
+            Assert.ThrowsAsync<HttpRequestException>(async () => await fileService.DownloadFileAsync(url, destinationPath));
         }
 
         [Test]
-        public void DownloadImage_AuthenticationHeaderIsSet()
+        public void DownloadFile_AuthenticationHeaderIsSet()
         {
             // Arrange
-            HttpRequestMessage capturedRequest = null;
+            HttpRequestMessage? capturedRequest = null;
             
             var mockHttpMessageHandler = new Mock<HttpMessageHandler>();
             mockHttpMessageHandler.Protected()
@@ -168,27 +126,38 @@ namespace ipx.revit.reports.Tests.Services
             // Use reflection to create a FileService with our mocked HttpClient
             var fileService = new FileService("test_user", "test_password");
             var fieldInfo = typeof(FileService).GetField("_httpClient", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            fieldInfo.SetValue(fileService, httpClient);
+            fieldInfo?.SetValue(fileService, httpClient);
 
             var url = "https://example.com/image.png";
-            var destinationFolder = Path.Combine(_testDataPath, "downloads");
+            var destinationPath = Path.Combine(_testDataPath, "downloads", "image.png");
 
             // Act
-            var result = fileService.DownloadImage(url, destinationFolder);
+            var task = fileService.DownloadFileAsync(url, destinationPath);
+            task.Wait();
 
             // Assert
-            Assert.NotNull(capturedRequest);
-            Assert.NotNull(capturedRequest.Headers.Authorization);
-            Assert.AreEqual("Basic", capturedRequest.Headers.Authorization.Scheme);
+            Assert.That(capturedRequest, Is.Not.Null);
+            Assert.That(capturedRequest!.Headers.Authorization, Is.Not.Null);
+            Assert.That(capturedRequest.Headers.Authorization!.Scheme, Is.EqualTo("Basic"));
             
             // The value should be base64 encoded "test_user:test_password"
             string expectedToken = Convert.ToBase64String(System.Text.Encoding.ASCII.GetBytes("test_user:test_password"));
-            Assert.AreEqual(expectedToken, capturedRequest.Headers.Authorization.Parameter);
+            Assert.That(capturedRequest.Headers.Authorization.Parameter, Is.EqualTo(expectedToken));
 
             // Cleanup
-            if (File.Exists(result))
+            if (File.Exists(destinationPath))
             {
-                File.Delete(result);
+                File.Delete(destinationPath);
+            }
+        }
+
+        [TearDown]
+        public void Cleanup()
+        {
+            // Clean up test directory if it exists
+            if (Directory.Exists(_testDataPath))
+            {
+                Directory.Delete(_testDataPath, true);
             }
         }
     }
