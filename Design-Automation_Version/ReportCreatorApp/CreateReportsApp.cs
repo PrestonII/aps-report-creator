@@ -95,52 +95,53 @@ namespace ipx.revit.reports
         {
             _logger.Log("Starting report generation process...");
 
-            // Get all views that match the specified view types
-            List<View> views = new FilteredElementCollector(doc)
-                .OfClass(typeof(View))
-                .Cast<View>()
-                .Where(vw => !vw.IsTemplate && vw.CanBePrinted && projectData.ViewTypes.Contains(vw.ViewType.ToString()))
-                .ToList();
-
-            _logger.Log($"Found {views.Count} views matching the specified view types");
-
-            // Apply view filters if specified
-            if (projectData.ViewFilters != null && projectData.ViewFilters.Count > 0)
-            {
-                _logger.Log($"Applying {projectData.ViewFilters.Count} view filters");
-                foreach (var filter in projectData.ViewFilters)
-                {
-                    _logger.Log($"Applying filter: {filter.Name} ({filter.Type})");
-                    // Apply filter logic here
-                    // This would depend on the specific filter types and how they should be applied
-                }
-            }
-
-            // Limit the number of views if specified
-            if (projectData.MaxViews > 0 && views.Count > projectData.MaxViews)
-            {
-                _logger.Log($"Limiting views from {views.Count} to {projectData.MaxViews}");
-                views = views.Take(projectData.MaxViews).ToList();
-            }
-
-            // Get authentication credentials
-            string username = projectData.Authentication?.Username;
-            string password = projectData.Authentication?.Password;
+            // Create the report generation service
+            string username = projectData.Authentication?.Username ?? "";
+            string password = projectData.Authentication?.Password ?? "";
+            ReportGenerationService reportService = new ReportGenerationService(doc, username, password, projectData.Environment);
+                
+            List<ElementId> sheetIds = new List<ElementId>();
             
-            if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
+            // Check if we have image data to place on individual sheets
+            if (projectData.ImageData != null && projectData.ImageData.Count > 0)
             {
-                _logger.LogWarning("Authentication credentials not provided. Image downloading may fail.");
+                _logger.Log($"Processing {projectData.ImageData.Count} images for individual sheets");
+                // Call the new method to place images on individual sheets
+                sheetIds = await reportService.PlaceImagesOnIndividualSheets(projectData);
             }
             else
             {
-                _logger.Log($"Using provided authentication credentials for user: {username}");
+                // Get all views that match the specified view types
+                List<View> views = new FilteredElementCollector(doc)
+                    .OfClass(typeof(View))
+                    .Cast<View>()
+                    .Where(vw => !vw.IsTemplate && vw.CanBePrinted && projectData.ViewTypes.Contains(vw.ViewType.ToString()))
+                    .ToList();
+
+                _logger.Log($"Found {views.Count} views matching the specified view types");
+
+                // Apply view filters if specified
+                if (projectData.ViewFilters != null && projectData.ViewFilters.Count > 0)
+                {
+                    _logger.Log($"Applying {projectData.ViewFilters.Count} view filters");
+                    foreach (var filter in projectData.ViewFilters)
+                    {
+                        _logger.Log($"Applying filter: {filter.Name} ({filter.Type})");
+                        // Apply filter logic here
+                        // This would depend on the specific filter types and how they should be applied
+                    }
+                }
+
+                // Limit the number of views if specified
+                if (projectData.MaxViews > 0 && views.Count > projectData.MaxViews)
+                {
+                    _logger.Log($"Limiting views from {views.Count} to {projectData.MaxViews}");
+                    views = views.Take(projectData.MaxViews).ToList();
+                }
+                
+                // Generate the image report
+                sheetIds = await reportService.GenerateImageReport(projectData);
             }
-            
-            // Create the report generation service
-            ReportGenerationService reportService = new ReportGenerationService(doc, username, password);
-            
-            // Generate the image report
-            List<ElementId> sheetIds = await reportService.GenerateImageReport(projectData);
             
             // Export the sheets to PDF
             string outputFileName = projectData.OutputFileName ?? "AssetReport";

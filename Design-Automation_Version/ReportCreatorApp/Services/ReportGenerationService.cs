@@ -148,6 +148,112 @@ namespace ipx.revit.reports.Services
         }
         
         /// <summary>
+        /// Places images on individual sheets from Airtable data
+        /// </summary>
+        /// <param name="projectData">The project data containing image information</param>
+        /// <returns>List of sheet IDs that were created</returns>
+        public async Task<List<ElementId>> PlaceImagesOnIndividualSheets(ProjectData projectData)
+        {
+            _logger.Log("Starting image sheet placement process...");
+            
+            // Create a temporary folder for downloaded images
+            string tempFolder = Path.Combine(Path.GetTempPath(), "RevitImages");
+            Directory.CreateDirectory(tempFolder);
+            
+            // Filter for image assets only
+            var imageAssets = projectData.ImageData
+                .Where(a => a.AssetType.Equals("image", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+                
+            if (!imageAssets.Any())
+            {
+                _logger.LogWarning("No image assets found in project data");
+                return new List<ElementId>();
+            }
+            
+            List<ElementId> createdSheets = new List<ElementId>();
+            
+            foreach (var asset in imageAssets)
+            {
+                try
+                {
+                    _logger.Log($"Processing asset: {asset.AssetName}");
+                    
+                    // 1. Download the image based on asset_url
+                    string imageUrl = asset.AssetUrlOverride ?? asset.AssetUrl;
+                    if (string.IsNullOrEmpty(imageUrl))
+                    {
+                        _logger.LogWarning($"No URL found for asset: {asset.AssetName}. Skipping.");
+                        continue;
+                    }
+                    
+                    string imagePath = await _fileService.DownloadFileAsync(imageUrl, Path.Combine(tempFolder, Path.GetFileName(imageUrl)));
+                    _logger.Log($"Downloaded image to: {imagePath}");
+                    
+                    // 2. Create a new Drafting View with a name matching asset_name
+                    string viewName = asset.AssetName;
+                    ViewDrafting draftingView = _imageService.CreateDraftingView(viewName);
+                    
+                    // Import and place the image in the drafting view
+                    var imageType = _imageService.ImportImage(_doc, imagePath);
+                    var location = new XYZ(0, 0, 0); // Default location at origin
+                    var element = _imageService.PlaceImageOnView(_doc, imageType, draftingView, location, 1.0);
+                    
+                    // 3. Create a new sheet for this image
+                    string sheetNumber = $"I{(createdSheets.Count + 1):000}"; // I for Image sheets
+                    string sheetName = $"{asset.AssetName} Sheet";
+                    ViewSheet sheet = _sheetService.CreateSheet(sheetNumber, sheetName);
+                    
+                    // Get the sheet size
+                    double sheetWidth = 0;
+                    double sheetHeight = 0;
+                    
+                    // Find the title block outline
+                    var titleBlock = new FilteredElementCollector(_doc, sheet.Id)
+                        .OfCategory(BuiltInCategory.OST_TitleBlocks)
+                        .WhereElementIsNotElementType()
+                        .FirstElement();
+                        
+                    if (titleBlock != null)
+                    {
+                        var bbox = titleBlock.get_BoundingBox(sheet);
+                        if (bbox != null)
+                        {
+                            sheetWidth = bbox.Max.X - bbox.Min.X;
+                            sheetHeight = bbox.Max.Y - bbox.Min.Y;
+                        }
+                    }
+                    
+                    if (sheetWidth <= 0 || sheetHeight <= 0)
+                    {
+                        // Default to ANSI B size (11" x 17") if we can't determine actual size
+                        sheetWidth = 17.0; 
+                        sheetHeight = 11.0;
+                    }
+                    
+                    // Calculate position 1" from top and right sides of the sheet
+                    // In Revit, Y increases going up, so for "top" we use (sheetHeight - 1)
+                    XYZ position = new XYZ(sheetWidth - 1.0, sheetHeight - 1.0, 0);
+                    
+                    // Place the drafting view on the sheet
+                    _logger.Log($"Placing view on sheet at position: ({position.X}, {position.Y})");
+                    Viewport viewport = _sheetService.PlaceViewOnSheet(sheet, draftingView, position);
+                    
+                    createdSheets.Add(sheet.Id);
+                    _logger.Log($"Successfully created sheet for asset: {asset.AssetName}");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"Failed to process asset {asset.AssetName}", ex);
+                    // Continue with the next asset
+                }
+            }
+            
+            _logger.Log($"Image sheet placement completed with {createdSheets.Count} sheets");
+            return createdSheets;
+        }
+        
+        /// <summary>
         /// Exports sheets to PDF
         /// </summary>
         /// <param name="sheetIds">List of sheet IDs to export</param>

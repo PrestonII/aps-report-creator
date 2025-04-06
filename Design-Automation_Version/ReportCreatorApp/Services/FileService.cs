@@ -45,6 +45,9 @@ namespace ipx.revit.reports.Services
                     await response.Content.CopyToAsync(fileStream);
                 }
 
+                // Ensure the file is in a Revit-compatible format
+                localPath = EnsureRevitCompatibleImageFormat(localPath);
+
                 _logger.Log($"File downloaded successfully to: {localPath}");
                 return localPath;
             }
@@ -53,6 +56,30 @@ namespace ipx.revit.reports.Services
                 _logger.LogError($"Failed to download file from {url}", ex);
                 throw;
             }
+        }
+
+        /// <summary>
+        /// Ensures the image is in a format compatible with Revit (BMP, JPG, JPEG, PNG, or TIFF)
+        /// </summary>
+        /// <param name="imagePath">The path to the image file</param>
+        /// <returns>The path to the compatible image file</returns>
+        private string EnsureRevitCompatibleImageFormat(string imagePath)
+        {
+            string extension = Path.GetExtension(imagePath).ToLowerInvariant();
+            
+            // Check if the file already has a compatible extension
+            if (extension == ".bmp" || extension == ".jpg" || extension == ".jpeg" || 
+                extension == ".png" || extension == ".tif" || extension == ".tiff")
+            {
+                return imagePath;
+            }
+            
+            _logger.LogWarning($"Image format {extension} may not be compatible with Revit. Using as-is and relying on Revit's import capability.");
+            
+            // If we want to convert the image in the future, we could add conversion logic here
+            // For now, we'll just return the original path and rely on Revit's import capabilities
+            
+            return imagePath;
         }
 
         public void DeleteFile(string filePath)

@@ -95,17 +95,26 @@ namespace ipx.revit.reports.Services
             _logger.LogDebug($"Placing image on view at location: ({location.X}, {location.Y}, {location.Z}) with scale: {scale}");
             
             // Create a new image instance at the specified location
-            var element = doc.Create.NewDetailCurve(view, Line.CreateBound(location, location.Add(XYZ.BasisX)));
+            Element image = ImageInstance.Create(doc, view.Id, imageType.Id, location);
             
-            // Apply scaling transformation
-            var transform = Transform.Identity;
-            transform.BasisX = transform.BasisX.Multiply(scale);
-            transform.BasisY = transform.BasisY.Multiply(scale);
-            transform.BasisZ = transform.BasisZ.Multiply(scale);
-            ElementTransformUtils.MoveElement(doc, element.Id, transform.Origin);
+            // Get the image width and height
+            double width = imageType.WidthScale;
+            double height = imageType.HeightScale;
+            
+            // Apply scaling if needed
+            if (Math.Abs(scale - 1.0) > 0.001)
+            {
+                // Create a transform for scaling
+                XYZ centroid = (image.Location as LocationPoint)?.Point ?? location;
+                Transform transform = Transform.CreateTranslation(-centroid)
+                    .Multiply(Transform.CreateScale(scale))
+                    .Multiply(Transform.CreateTranslation(centroid));
+                
+                ElementTransformUtils.ModifyInstance(doc, image.Id, transform);
+            }
             
             _logger.Log("Image placed successfully on view");
-            return element;
+            return image;
         }
     }
 } 
