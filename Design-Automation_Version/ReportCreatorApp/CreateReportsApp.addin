@@ -2,7 +2,7 @@
 <RevitAddIns>
   <AddIn Type="DBApplication">
     <Name>CreateReports</Name>
-    <Assembly>.\CreateReportsApp.dll</Assembly>
+    <Assembly>ReportCreatorApp.dll</Assembly>
     <AddInId>d7fe1983-8f10-4983-98e2-c3cc332fc978</AddInId>
     <FullClassName>ipx.revit.reports.CreateReportsApp</FullClassName>
     <Description>"Create Reports From Addin"</Description>

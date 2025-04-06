@@ -23,4 +23,8 @@
     </None>
   </ItemGroup>
 
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="if exist &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot; copy &quot;$(ProjectDir)*.addin&quot; &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot;&#xD;&#xA;if exist &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot; copy &quot;$(ProjectDir)$(OutputPath)*.dll&quot; &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot;&#xD;&#xA;if exist &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot; copy &quot;$(ProjectDir)$(OutputPath)*.pdb&quot; &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot;&#xD;&#xA;if exist &quot;$(ProgramData)\Autodesk\REVIT\Addins\2023&quot; copy &quot;$(ProjectDir)*.addin&quot; &quot;$(ProgramData)\Autodesk\REVIT\Addins\2023&quot;&#xD;&#xA;if exist &quot;$(ProgramData)\Autodesk\REVIT\Addins\2023&quot; copy &quot;$(ProjectDir)$(OutputPath)*.dll&quot; &quot;$(ProgramData)\Autodesk\REVIT\Addins\2023&quot;&#xD;&#xA;if exist &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot; copy &quot;$(ProjectDir)$(OutputPath)*.pdb&quot; &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot;" />
+  </Target>
+
 </Project> 
