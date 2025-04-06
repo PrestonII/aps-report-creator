@@ -15,7 +15,7 @@ namespace ipx.revit.reports
    [Autodesk.Revit.Attributes.Transaction(Autodesk.Revit.Attributes.TransactionMode.Manual)]
    public class CreateReportsApp : IExternalDBApplication
    {
-      private LoggingService _logger = null!;
+      private LoggingService _logger = new();
 
       public ExternalDBApplicationResult OnStartup(ControlledApplication app)
       {
@@ -30,9 +30,9 @@ namespace ipx.revit.reports
 
       public void HandleDesignAutomationReadyEvent(object sender, DesignAutomationReadyEventArgs e)
       {
-         e.Succeeded = true;
          ExportToPdfs(e.DesignAutomationData).Wait();
-      }
+         e.Succeeded = true;
+    }
 
     public async Task<bool> ExportToPdfs(DesignAutomationData data)
     {
@@ -71,7 +71,7 @@ namespace ipx.revit.reports
 
         // Validate and parse the input JSON file
         JsonValidationService jsonValidationService = new JsonValidationService();
-        ProjectData projectData = jsonValidationService.ValidateAndParseProjectData("params.json");
+        ProjectData projectData = jsonValidationService.ValidateAndParseProjectData($"{Path.GetDirectoryName(modelPath)}\\params.json");
         
         if (projectData == null)
         {
@@ -79,7 +79,7 @@ namespace ipx.revit.reports
             throw new InvalidOperationException("Failed to parse input JSON.");
         }
 
-        // Initialize logger with environment setting
+        // Reinitialize logger with environment setting
         _logger = new LoggingService(projectData.Environment);
 
         return await ExportToPdfsImp(rvtApp, doc, projectData);

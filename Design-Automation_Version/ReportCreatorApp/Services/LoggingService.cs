@@ -9,7 +9,7 @@ namespace ipx.revit.reports.Services
         private readonly string _logFilePath;
         private readonly bool _isProduction;
 
-        public LoggingService(string environment)
+        public LoggingService(string environment = "debug")
         {
             _isProduction = environment?.ToLower() == "production";
             
