@@ -1,119 +1,156 @@
 using System;
 using System.IO;
+using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
 
 namespace ipx.revit.reports.Services
 {
-    public class FileService
+  public class FileService
+  {
+    private readonly string _username;
+    private readonly string _password;
+    private readonly LoggingService _logger;
+    private readonly HttpClient _httpClient;
+
+    public FileService(string username, string password, string environment = "development")
     {
-        private readonly string _username;
-        private readonly string _password;
-        private readonly HttpClient _httpClient;
-        private readonly LoggingService _logger;
+      _username = username ?? throw new ArgumentNullException(nameof(username));
+      _password = password ?? throw new ArgumentNullException(nameof(password));
+      _logger = new LoggingService(environment);
 
-        public FileService(string username, string password, string environment = "development")
-        {
-            _username = username ?? throw new ArgumentNullException(nameof(username));
-            _password = password ?? throw new ArgumentNullException(nameof(password));
-            _httpClient = new HttpClient();
-            _logger = new LoggingService(environment);
-        }
+      ServicePointManager.ServerCertificateValidationCallback += (sender, cert, chain, sslPolicyErrors) => true; // ⚠️ Trust all certs for debug only
 
-        public async Task<string> DownloadFileAsync(string url, string localPath)
-        {
-            try
-            {
-                _logger.LogDebug($"Starting download from URL: {url} to local path: {localPath}");
-                
-                // Add basic authentication if needed
-                if (!string.IsNullOrEmpty(_username) && !string.IsNullOrEmpty(_password))
-                {
-                    var authString = Convert.ToBase64String(System.Text.Encoding.ASCII.GetBytes($"{_username}:{_password}"));
-                    _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", authString);
-                }
-
-                var response = await _httpClient.GetAsync(url);
-                response.EnsureSuccessStatusCode();
-
-                // Ensure the directory exists
-                Directory.CreateDirectory(Path.GetDirectoryName(localPath));
-
-                // Save the file
-                using (var fileStream = new FileStream(localPath, FileMode.Create, FileAccess.Write, FileShare.None))
-                {
-                    await response.Content.CopyToAsync(fileStream);
-                }
-
-                // Ensure the file is in a Revit-compatible format
-                localPath = EnsureRevitCompatibleImageFormat(localPath);
-
-                _logger.Log($"File downloaded successfully to: {localPath}");
-                return localPath;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Failed to download file from {url}", ex);
-                throw;
-            }
-        }
-
-        /// <summary>
-        /// Ensures the image is in a format compatible with Revit (BMP, JPG, JPEG, PNG, or TIFF)
-        /// </summary>
-        /// <param name="imagePath">The path to the image file</param>
-        /// <returns>The path to the compatible image file</returns>
-        private string EnsureRevitCompatibleImageFormat(string imagePath)
-        {
-            string extension = Path.GetExtension(imagePath).ToLowerInvariant();
-            
-            // Check if the file already has a compatible extension
-            if (extension == ".bmp" || extension == ".jpg" || extension == ".jpeg" || 
-                extension == ".png" || extension == ".tif" || extension == ".tiff")
-            {
-                return imagePath;
-            }
-            
-            _logger.LogWarning($"Image format {extension} may not be compatible with Revit. Using as-is and relying on Revit's import capability.");
-            
-            // If we want to convert the image in the future, we could add conversion logic here
-            // For now, we'll just return the original path and rely on Revit's import capabilities
-            
-            return imagePath;
-        }
-
-        public void DeleteFile(string filePath)
-        {
-            try
-            {
-                if (File.Exists(filePath))
-                {
-                    File.Delete(filePath);
-                    _logger.LogDebug($"File deleted successfully: {filePath}");
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Failed to delete file {filePath}", ex);
-                throw;
-            }
-        }
-
-        public void DeleteDirectory(string directoryPath)
-        {
-            try
-            {
-                if (Directory.Exists(directoryPath))
-                {
-                    Directory.Delete(directoryPath, true);
-                    _logger.LogDebug($"Directory deleted successfully: {directoryPath}");
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Failed to delete directory {directoryPath}", ex);
-                throw;
-            }
-        }
+      var handler = new HttpClientHandler { AllowAutoRedirect = false };
+      _httpClient = new HttpClient(handler);
     }
-} 
+
+    public string DownloadFile(string url, string localPath)
+    {
+      try
+      {
+        _logger.LogDebug($"\uD83D\uDCC5 Starting download from URL: {url} to local path: {localPath}");
+
+        string currentUrl = url;
+        int redirectCount = 0;
+        const int MaxRedirects = 10;
+        HttpResponseMessage response = null;
+
+        while (redirectCount < MaxRedirects)
+        {
+          using var request = new HttpRequestMessage(HttpMethod.Get, currentUrl);
+
+          request.Headers.UserAgent.ParseAdd("PostmanRuntime/7.43.3");
+          request.Headers.Accept.ParseAdd("*/*");
+          request.Headers.CacheControl = new System.Net.Http.Headers.CacheControlHeaderValue { NoCache = true };
+
+          if (currentUrl.StartsWith("https://file.ipx-app.com"))
+          {
+            var authValue = Convert.ToBase64String(System.Text.Encoding.ASCII.GetBytes($"{_username}:{_password}"));
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", authValue);
+            _logger.LogDebug($"✅ Added Basic Auth to: {currentUrl}");
+          }
+          else
+          {
+            _logger.LogDebug($"🚫 No auth added to: {currentUrl}");
+          }
+
+          _logger.LogDebug($"➡️ Sending request to: {currentUrl}");
+          response = _httpClient.SendAsync(request).Result;
+
+          _logger.LogDebug($"↩️ Status: {(int)response.StatusCode} {response.StatusCode}");
+          _logger.LogDebug("📦 Response headers:");
+          foreach (var header in response.Headers)
+            _logger.LogDebug($"    {header.Key}: {string.Join(", ", header.Value)}");
+
+          if (response.StatusCode == HttpStatusCode.MovedPermanently ||
+              response.StatusCode == HttpStatusCode.Found ||
+              response.StatusCode == HttpStatusCode.TemporaryRedirect)
+          {
+            if (response.Headers.Location == null)
+            {
+              _logger.LogWarning("Redirect received but no Location header found.");
+              throw new InvalidOperationException("Redirect received with no Location header.");
+            }
+
+            string redirectUrl = response.Headers.Location.IsAbsoluteUri
+                ? response.Headers.Location.AbsoluteUri
+                : new Uri(new Uri(currentUrl), response.Headers.Location).AbsoluteUri;
+
+            _logger.LogDebug($"🔁 Redirecting to: {redirectUrl}");
+            currentUrl = redirectUrl;
+            redirectCount++;
+            continue;
+          }
+
+          break;
+        }
+
+        if (response == null)
+          throw new Exception("No response received.");
+
+        response.EnsureSuccessStatusCode();
+
+        Directory.CreateDirectory(Path.GetDirectoryName(localPath));
+        using var fs = new FileStream(localPath, FileMode.Create, FileAccess.Write);
+        response.Content.CopyToAsync(fs).Wait();
+
+        _logger.Log($"✅ Downloaded file to: {localPath}");
+        return EnsureRevitCompatibleImageFormat(localPath);
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError($"❌ Failed to download file from {url}", ex);
+        throw;
+      }
+    }
+
+    private string EnsureRevitCompatibleImageFormat(string imagePath)
+    {
+      string extension = Path.GetExtension(imagePath).ToLowerInvariant();
+
+      if (extension == ".bmp" || extension == ".jpg" || extension == ".jpeg" ||
+          extension == ".png" || extension == ".tif" || extension == ".tiff")
+      {
+        return imagePath;
+      }
+
+      _logger.LogWarning($"⚠️ Image format {extension} may not be compatible with Revit. Using as-is.");
+      return imagePath;
+    }
+
+    public void DeleteFile(string filePath)
+    {
+      try
+      {
+        if (File.Exists(filePath))
+        {
+          File.Delete(filePath);
+          _logger.LogDebug($"🗑️ File deleted: {filePath}");
+        }
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError($"❌ Failed to delete file {filePath}", ex);
+        throw;
+      }
+    }
+
+    public void DeleteDirectory(string directoryPath)
+    {
+      try
+      {
+        if (Directory.Exists(directoryPath))
+        {
+          Directory.Delete(directoryPath, true);
+          _logger.LogDebug($"🧹 Directory deleted: {directoryPath}");
+        }
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError($"❌ Failed to delete directory {directoryPath}", ex);
+        throw;
+      }
+    }
+  }
+}
