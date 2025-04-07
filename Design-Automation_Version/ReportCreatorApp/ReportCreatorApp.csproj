@@ -11,20 +11,20 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Content Include="data_samples\params.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Autodesk.Revit.SDK" Version="2023.0.0.2001" PrivateAssets="All" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="Autodesk.Forge.DesignAutomation.Revit" Version="2018.0.0" />
     <PackageReference Include="System.Net.Http" Version="4.3.4" />
   </ItemGroup>
 
-  <ItemGroup>
-    <None Update="data\**\*.*">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
-
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="if exist &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot; copy &quot;$(ProjectDir)*.addin&quot; &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot;&#xD;&#xA;if exist &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot; copy &quot;$(ProjectDir)$(OutputPath)*.dll&quot; &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot;&#xD;&#xA;if exist &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot; copy &quot;$(ProjectDir)$(OutputPath)*.pdb&quot; &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot;&#xD;&#xA;if exist &quot;$(ProgramData)\Autodesk\REVIT\Addins\2023&quot; copy &quot;$(ProjectDir)*.addin&quot; &quot;$(ProgramData)\Autodesk\REVIT\Addins\2023&quot;&#xD;&#xA;if exist &quot;$(ProgramData)\Autodesk\REVIT\Addins\2023&quot; copy &quot;$(ProjectDir)$(OutputPath)*.dll&quot; &quot;$(ProgramData)\Autodesk\REVIT\Addins\2023&quot;&#xD;&#xA;if exist &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot; copy &quot;$(ProjectDir)$(OutputPath)*.pdb&quot; &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot;" />
+    <Exec Command="if exist &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot; copy &quot;$(ProjectDir)*.addin&quot; &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot;&#xD;&#xA;if exist &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot; copy &quot;$(ProjectDir)$(OutputPath)*.dll&quot; &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot;&#xD;&#xA;if exist &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot; copy &quot;$(ProjectDir)$(OutputPath)*.pdb&quot; &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot;&#xD;&#xA;if exist &quot;$(ProgramData)\Autodesk\REVIT\Addins\2023&quot; copy &quot;$(ProjectDir)*.addin&quot; &quot;$(ProgramData)\Autodesk\REVIT\Addins\2023&quot;&#xD;&#xA;if exist &quot;$(ProgramData)\Autodesk\REVIT\Addins\2023&quot; copy &quot;$(ProjectDir)$(OutputPath)*.dll&quot; &quot;$(ProgramData)\Autodesk\REVIT\Addins\2023&quot;&#xD;&#xA;if exist &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot; copy &quot;$(ProjectDir)$(OutputPath)*.pdb&quot; &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot;&#xD;&#xA;if exist &quot;$(USERPROFILE)\Downloads&quot; copy &quot;$(ProjectDir)$(OutputPath)data_samples\params.json&quot; &quot;$(USERPROFILE)\Downloads&quot;" />
   </Target>
 
 </Project> 

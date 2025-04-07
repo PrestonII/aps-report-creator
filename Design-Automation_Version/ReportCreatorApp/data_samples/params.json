@@ -6,8 +6,8 @@
   "maxViews": 10,
   "outputFileName": "SwissAveHouseReport",
   "authentication": {
-    "username": "api_user",
-    "password": "api_password"
+    "username": "ip",
+    "password": "scantobim4all"
   },
   "imageData": [
     {

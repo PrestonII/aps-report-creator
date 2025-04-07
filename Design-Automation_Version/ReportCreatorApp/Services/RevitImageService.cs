@@ -94,23 +94,44 @@ namespace ipx.revit.reports.Services
         {
             _logger.LogDebug($"Placing image on view at location: ({location.X}, {location.Y}, {location.Z}) with scale: {scale}");
             
+            // Create placement options for the image
+            // BoxPlacement.Center means the center of the image will be placed at the location
+            ImagePlacementOptions placementOptions = new ImagePlacementOptions(location, BoxPlacement.Center);
+            
             // Create a new image instance at the specified location
-            Element image = ImageInstance.Create(doc, view.Id, imageType.Id, location);
+            ImageInstance image = ImageInstance.Create(doc, view, imageType.Id, placementOptions);
             
-            // Get the image width and height
-            double width = imageType.WidthScale;
-            double height = imageType.HeightScale;
-            
-            // Apply scaling if needed
+            // Apply scaling if needed (using a different approach in Revit 2023)
             if (Math.Abs(scale - 1.0) > 0.001)
             {
-                // Create a transform for scaling
-                XYZ centroid = (image.Location as LocationPoint)?.Point ?? location;
-                Transform transform = Transform.CreateTranslation(-centroid)
-                    .Multiply(Transform.CreateScale(scale))
-                    .Multiply(Transform.CreateTranslation(centroid));
-                
-                ElementTransformUtils.ModifyInstance(doc, image.Id, transform);
+                try
+                {
+                    // In Revit 2023, we need to use ElementTransformUtils differently
+                    // Get height and width parameters directly
+                    Parameter heightParam = image.get_Parameter(BuiltInParameter.RASTER_SHEETWIDTH);
+                    Parameter widthParam = image.get_Parameter(BuiltInParameter.RASTER_SHEETHEIGHT);
+                    
+                    if (heightParam != null && widthParam != null)
+                    {
+                        // Get current values
+                        double currentWidth = widthParam.AsDouble();
+                        double currentHeight = heightParam.AsDouble();
+                        
+                        // Set new scaled values
+                        widthParam.Set(currentWidth * scale);
+                        heightParam.Set(currentHeight * scale);
+                        
+                        _logger.LogDebug($"Applied scaling of {scale} using dimension parameters");
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Could not find width/height parameters for scaling the image");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning($"Error applying image scaling: {ex.Message}");
+                }
             }
             
             _logger.Log("Image placed successfully on view");

@@ -30,11 +30,10 @@ namespace ipx.revit.reports
 
       public void HandleDesignAutomationReadyEvent(object sender, DesignAutomationReadyEventArgs e)
       {
-         ExportToPdfs(e.DesignAutomationData).Wait();
-         e.Succeeded = true;
+         e.Succeeded = ExportToPdfs(e.DesignAutomationData);
     }
 
-    public async Task<bool> ExportToPdfs(DesignAutomationData data)
+    public bool ExportToPdfs(DesignAutomationData data)
     {
         if (data == null)
         {
@@ -82,10 +81,10 @@ namespace ipx.revit.reports
         // Reinitialize logger with environment setting
         _logger = new LoggingService(projectData.Environment);
 
-        return await ExportToPdfsImp(rvtApp, doc, projectData);
+        return ExportToPdfsImp(rvtApp, doc, projectData);
     }
 
-    private async Task<bool> ExportToPdfsImp(Application rvtApp, Document doc, ProjectData projectData)
+    private bool ExportToPdfsImp(Application rvtApp, Document doc, ProjectData projectData)
     {
       using (Transaction tx = new Transaction(doc))
       {
@@ -107,7 +106,7 @@ namespace ipx.revit.reports
             {
                 _logger.Log($"Processing {projectData.ImageData.Count} images for individual sheets");
                 // Call the new method to place images on individual sheets
-                sheetIds = await reportService.PlaceImagesOnIndividualSheets(projectData);
+                sheetIds = reportService.PlaceImagesOnIndividualSheets(projectData);
             }
             else
             {
@@ -140,7 +139,7 @@ namespace ipx.revit.reports
                 }
                 
                 // Generate the image report
-                sheetIds = await reportService.GenerateImageReport(projectData);
+                sheetIds = reportService.GenerateImageReport(projectData);
             }
             
             // Export the sheets to PDF

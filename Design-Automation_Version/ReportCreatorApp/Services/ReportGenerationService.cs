@@ -41,7 +41,7 @@ namespace ipx.revit.reports.Services
         /// </summary>
         /// <param name="projectData">The project data containing image information</param>
         /// <returns>List of sheet IDs that were created</returns>
-        public async Task<List<ElementId>> GenerateImageReport(ProjectData projectData)
+        public List<ElementId> GenerateImageReport(ProjectData projectData)
         {
             _logger.Log("Starting image report generation process...");
             
@@ -88,7 +88,7 @@ namespace ipx.revit.reports.Services
                         continue;
                     }
                     
-                    string imagePath = await _fileService.DownloadFileAsync(imageUrl, Path.Combine(tempFolder, Path.GetFileName(imageUrl)));
+                    string imagePath = _fileService.DownloadFile(imageUrl, Path.Combine(tempFolder, Path.GetFileName(imageUrl)));
                     _logger.Log($"Downloaded image to: {imagePath}");
                     
                     // Create a drafting view for the image
@@ -152,7 +152,7 @@ namespace ipx.revit.reports.Services
         /// </summary>
         /// <param name="projectData">The project data containing image information</param>
         /// <returns>List of sheet IDs that were created</returns>
-        public async Task<List<ElementId>> PlaceImagesOnIndividualSheets(ProjectData projectData)
+        public List<ElementId> PlaceImagesOnIndividualSheets(ProjectData projectData)
         {
             _logger.Log("Starting image sheet placement process...");
             
@@ -187,7 +187,7 @@ namespace ipx.revit.reports.Services
                         continue;
                     }
                     
-                    string imagePath = await _fileService.DownloadFileAsync(imageUrl, Path.Combine(tempFolder, Path.GetFileName(imageUrl)));
+                    string imagePath = _fileService.DownloadFile(imageUrl, Path.Combine(tempFolder, Path.GetFileName(imageUrl)));
                     _logger.Log($"Downloaded image to: {imagePath}");
                     
                     // 2. Create a new Drafting View with a name matching asset_name
