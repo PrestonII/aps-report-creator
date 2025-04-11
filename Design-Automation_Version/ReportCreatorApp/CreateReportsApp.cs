@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -19,6 +20,7 @@ namespace ipx.revit.reports
 
       public ExternalDBApplicationResult OnStartup(ControlledApplication app)
       {
+        Console.WriteLine("WELCOME FROM IPX - WE'RE LIVE AND LOGGING!");
          DesignAutomationBridge.DesignAutomationReadyEvent += HandleDesignAutomationReadyEvent;
          return ExternalDBApplicationResult.Succeeded;
       }
@@ -30,11 +32,27 @@ namespace ipx.revit.reports
 
       public void HandleDesignAutomationReadyEvent(object sender, DesignAutomationReadyEventArgs e)
       {
-         e.Succeeded = true;
-         ExportToPdfs(e.DesignAutomationData).Wait();
+        try
+        {
+          var task = ExportToPdfs(e.DesignAutomationData); 
+          // ensures sync completion and catches exception
+          e.Succeeded = task;
+        }
+        catch (Exception ex)
+        {
+          //Trace.WriteLine($"[ERROR] Top-level failure in DA event: {ex.Message}");
+          //Trace.WriteLine(ex.StackTrace);
+          //Trace.Flush();
+          e.Succeeded = false;
+        }
+        finally
+        {
+          _logger.WriteBufferToFile();
+        }
       }
 
-    public async Task<bool> ExportToPdfs(DesignAutomationData data)
+
+    public bool ExportToPdfs(DesignAutomationData data)
     {
         if (data == null)
         {
@@ -52,11 +70,17 @@ namespace ipx.revit.reports
         }
 
         string modelPath = data.FilePath;
-        _logger.LogDebug($"modelPath from DesignAutomationData.FilePath: '{modelPath}'");
+        if (string.IsNullOrWhiteSpace(modelPath) && data.RevitDoc != null)
+        {
+            modelPath = data.RevitDoc.PathName;
+            _logger.LogDebug($"Fallback: modelPath from RevitDoc.PathName: '{modelPath}'");
+        }
+
+        _logger.LogDebug($"Final modelPath: '{modelPath}'");
 
         if (String.IsNullOrWhiteSpace(modelPath))
         {
-            _logger.LogError("modelPath is null or whitespace.");
+            _logger.LogError("modelPath is still null or whitespace after fallback.");
             throw new InvalidDataException(nameof(modelPath));
         }
 
@@ -82,10 +106,10 @@ namespace ipx.revit.reports
         // Initialize logger with environment setting
         _logger = new LoggingService(projectData.Environment);
 
-        return await ExportToPdfsImp(rvtApp, doc, projectData);
+        return ExportToPdfsImp(rvtApp, doc, projectData);
     }
 
-    private async Task<bool> ExportToPdfsImp(Application rvtApp, Document doc, ProjectData projectData)
+    private bool ExportToPdfsImp(Application rvtApp, Document doc, ProjectData projectData)
     {
       using (Transaction tx = new Transaction(doc))
       {
@@ -137,14 +161,14 @@ namespace ipx.revit.reports
             }
             
             // Create the report generation service
-            ReportGenerationService reportService = new ReportGenerationService(doc, username, password);
+            // ReportGenerationService reportService = new ReportGenerationService(doc, username, password);
             
-            // Generate the image report
-            List<ElementId> sheetIds = await reportService.GenerateImageReport(projectData);
+            // // Generate the image report
+            // List<ElementId> sheetIds = await reportService.GenerateImageReport(projectData);
             
-            // Export the sheets to PDF
-            string outputFileName = projectData.OutputFileName ?? "AssetReport";
-            reportService.ExportSheetsToPdf(sheetIds, outputFileName);
+            // // Export the sheets to PDF
+            // string outputFileName = projectData.OutputFileName ?? "AssetReport";
+            // reportService.ExportSheetsToPdf(sheetIds, outputFileName);
             
             _logger.Log("Report generation process completed successfully");
             tx.Commit();
@@ -155,6 +179,10 @@ namespace ipx.revit.reports
             _logger.LogError("Exception during report generation", ex);
             tx.RollBack();
             return false;
+        }
+        finally
+        {
+          _logger.WriteBufferToFile();
         }
       }
     }
