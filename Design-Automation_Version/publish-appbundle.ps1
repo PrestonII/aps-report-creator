@@ -92,7 +92,7 @@ function Create-PackageContentsXml {
 
 # Function to create ZIP file
 function Create-AppBundleZip {
-    $releaseFolder = Join-Path $PSScriptRoot "ReportCreatorApp\bin\Release"
+    $releaseFolder = Join-Path $PSScriptRoot "ReportCreatorApp\bin\Release\net48"
     $bundleFolder = Join-Path $releaseFolder "ReportCreator.bundle"
     $contentsFolder = Join-Path $bundleFolder "Contents"
     $resourcesFolder = Join-Path $contentsFolder "Resources"
@@ -138,10 +138,11 @@ function Create-AppBundleZip {
     
     # Copy necessary files to Contents folder
     $sourceFiles = @(
-        @{Source = "CreateReportsApp.dll"; Dest = "CreateReportsApp.dll"},
+        @{Source = "ReportCreatorApp.dll"; Dest = "ReportCreatorApp.dll"},
         @{Source = "CreateReportsApp.addin"; Dest = "CreateReportsApp.addin"}
-        # @{Source = "DesignAutomationBridge.dll"; Dest = "DesignAutomationBridge.dll"},
-        # @{Source = "Newtonsoft.Json.dll"; Dest = "Newtonsoft.Json.dll"}
+        @{Source = "DesignAutomationBridge.dll"; Dest = "DesignAutomationBridge.dll"},
+        @{Source = "RevitAPI.dll"; Dest = "RevitAPI.dll"},
+        @{Source = "Newtonsoft.Json.dll"; Dest = "Newtonsoft.Json.dll"}
     )
     
     foreach ($file in $sourceFiles) {
@@ -180,25 +181,27 @@ try {
     Write-Host "Creating ZIP file..."
     $zipPath = Create-AppBundleZip
     
-    Write-Host "Publishing AppBundle..."
-    $headers = @{
-        "Authorization" = "Bearer $accessToken"
-        "Content-Type" = "application/zip"
-    }
+    ###
+    #Write-Host "Publishing AppBundle..."
+    #$headers = @{
+        #"Authorization" = "Bearer $accessToken"
+        #"Content-Type" = "application/zip"
+    #}
     
-    $url = "$baseUrl/da/us-east/v3/appbundles/$APP_BUNDLE_ID/versions/$APP_BUNDLE_VERSION"
+    #$url = "$baseUrl/da/us-east/v3/appbundles/$APP_BUNDLE_ID/versions/$APP_BUNDLE_VERSION"
     
     # Read ZIP file as bytes
-    $zipBytes = [System.IO.File]::ReadAllBytes($zipPath)
+    #$zipBytes = [System.IO.File]::ReadAllBytes($zipPath)
     
     # Use Invoke-RestMethod with byte array
-    $response = Invoke-RestMethod -Uri $url -Method Put -Headers $headers -Body $zipBytes
+    #$response = Invoke-RestMethod -Uri $url -Method Put -Headers $headers -Body $zipBytes
     
-    Write-Host "AppBundle published successfully!"
-    Write-Host "Response: $($response | ConvertTo-Json)"
+    #Write-Host "AppBundle published successfully!"
+    #Write-Host "Response: $($response | ConvertTo-Json)"
     
     # Cleanup
-    Remove-Item $zipPath -Force
+    #Remove-Item $zipPath -Force
+    ###
     
 } catch {
     Write-Host "Error: $_"
