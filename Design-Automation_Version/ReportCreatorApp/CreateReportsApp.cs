@@ -18,6 +18,7 @@ namespace ipx.revit.reports
     public class CreateReportsApp : IExternalDBApplication
     {
         private LoggingService _logger = new();
+        private bool? _success = null;
 
         public ExternalDBApplicationResult OnStartup(ControlledApplication app)
         {
@@ -36,86 +37,35 @@ namespace ipx.revit.reports
             try
             {
                 Console.WriteLine("IPX LOGGER: DesignAutomationReadyEvent: Starting event handling");
-                var data = ValidateProjectData();
+                var data = ProjectDataValidationService.ValidateProjectData();
                 _logger = new LoggingService(data.Environment);
-                var task = ExportToPdfs(e.DesignAutomationData, data);
-                e.Succeeded = task;
+                ExportToPdfs(e.DesignAutomationData, data);
+                e.Succeeded = _success ?? false;
             }
             catch (Exception ex)
             {
-                e.Succeeded = false;
+                _logger.LogError(ex.Message);
+                e.Succeeded = _success ?? false;
             }
             finally
             {
-                Console.WriteLine("IPX LOGGER: DesignAutomationReadyEvent: Ending event handling");
+                _logger.Log("IPX LOGGER: DesignAutomationReadyEvent: Ending event handling");
             }
         }
 
-        public ProjectData ValidateProjectData()
+        public void ExportToPdfs(DesignAutomationData designAutomationData, ProjectData projectData)
         {
-            // Validate and parse the input JSON file
-            JsonValidationService jsonValidationService = new();
-            ProjectData projectData = jsonValidationService.ValidateAndParseProjectData("params.json");
-            return projectData;
+            RevitModelValidationService.ValidateDesignAutomationEnvironment(designAutomationData, _logger, projectData);
+            var (rvtApp, doc) = RevitModelValidationService.GetRevitAssets();
+
+            _logger.Log(Directory.Exists("assets.zip") ? "The assets file is already here!" : "The assets file needs to be downloaded");
+
+            ExportToPdfsImp(rvtApp, doc, projectData);
         }
 
-
-        public bool ExportToPdfs(DesignAutomationData data, ProjectData projectData)
+        private void ExportToPdfsImp(Application rvtApp, Document doc, ProjectData projectData)
         {
-            if (data == null)
-            {
-                _logger.LogError("DesignAutomationData is null.");
-                throw new ArgumentNullException(nameof(data));
-            }
-
-            _logger.Log("Starting ExportToPdfs...");
-
-            Application rvtApp = data.RevitApp;
-            if (rvtApp == null)
-            {
-                _logger.LogError("RevitApp is null.");
-                throw new InvalidDataException(nameof(rvtApp));
-            }
-
-            string modelPath = data.FilePath;
-            if (string.IsNullOrWhiteSpace(modelPath) && data.RevitDoc != null)
-            {
-                modelPath = data.RevitDoc.PathName;
-                _logger.LogDebug($"Fallback: modelPath from RevitDoc.PathName: '{modelPath}'");
-            }
-
-            _logger.LogDebug($"Final modelPath: '{modelPath}'");
-
-            if (String.IsNullOrWhiteSpace(modelPath))
-            {
-                _logger.LogError("modelPath is still null or whitespace after fallback.");
-                throw new InvalidDataException(nameof(modelPath));
-            }
-
-            Document doc = data.RevitDoc;
-            if (doc == null)
-            {
-                _logger.LogError("RevitDoc is null. Could not open document.");
-                throw new InvalidOperationException("Could not open document.");
-            }
-
-            _logger.Log("Revit document opened successfully.");
-
-            if (projectData == null)
-            {
-                _logger.LogError("Failed to parse input JSON.");
-                throw new InvalidOperationException("Failed to parse input JSON.");
-            }
-
-            // Reinitialize logger with environment setting
-            _logger = new LoggingService(projectData.Environment);
-
-            return ExportToPdfsImp(rvtApp, doc, projectData);
-        }
-
-        private bool ExportToPdfsImp(Application rvtApp, Document doc, ProjectData projectData)
-        {
-            using (Transaction tx = new Transaction(doc))
+            using (Transaction tx = new(doc))
             {
                 tx.Start("Export PDF");
 
@@ -136,7 +86,6 @@ namespace ipx.revit.reports
                         _logger.Log($"Processing {projectData.ImageData.Count} images for individual sheets");
                         // Call the new method to place images on individual sheets
                         sheetIds = reportService.PlaceImagesOnIndividualSheets(projectData);
-                        return true;
                     }
                     else
                     {
@@ -177,26 +126,16 @@ namespace ipx.revit.reports
                             _logger.Log($"Using provided authentication credentials for user: {username}");
                         }
 
-                        // Create the report generation service
-                        //ReportGenerationService reportService = new ReportGenerationService(doc, username, password);
-
-                        // Generate the image report
-                        //List<ElementId> sheetIds = await reportService.GenerateImageReport(projectData);
-
-                        // // Export the sheets to PDF
-                        // string outputFileName = projectData.OutputFileName ?? "AssetReport";
-                        // reportService.ExportSheetsToPdf(sheetIds, outputFileName);
-
                         _logger.Log("Report generation process completed successfully");
                         tx.Commit();
-                        return true;
                     }
+                    _success = true;
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError("Exception during report generation", ex);
                     tx.RollBack();
-                    return false;
+                    _success = false;
                 }
             }
         }
