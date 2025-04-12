@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Text;
 
@@ -22,7 +23,6 @@ namespace ipx.revit.reports.Services
             if (_isDev)
             {
                 string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-
                 _logFilePath = Path.Combine(desktopPath, $"RevitReportLog_{timestamp}.txt");
             }
             else if (_isDebug)
@@ -38,23 +38,31 @@ namespace ipx.revit.reports.Services
 
         public void Log(string message, string level = "INFO")
         {
-            string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
-            string logMessage = $"[{timestamp}] [IPX:] [{level}] {message}";
+            try 
+            { 
+                string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
+                string logMessage = $"[{timestamp}] [IPX:] [{level}] {message}";
 
-            // Always write to console
-            Console.WriteLine(logMessage);
+                // Always write to console
+                Console.WriteLine(logMessage);
 
-            // Write to file if not in production
-            if (!string.IsNullOrEmpty(_logFilePath))
+                // Write to file if not in production
+                if (!string.IsNullOrEmpty(_logFilePath))
+                {
+                    try
+                    {
+                        File.AppendAllText(_logFilePath, logMessage + Environment.NewLine);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[ERROR] Failed to write to log file: {ex.Message}");
+                    }
+                }
+            }
+            catch(Exception e)
             {
-                try
-                {
-                    File.AppendAllText(_logFilePath, logMessage + Environment.NewLine);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"[ERROR] Failed to write to log file: {ex.Message}");
-                }
+                Console.WriteLine(e.ToString());
+                Console.WriteLine("Could not log the last message due to an error!");
             }
         }
 
