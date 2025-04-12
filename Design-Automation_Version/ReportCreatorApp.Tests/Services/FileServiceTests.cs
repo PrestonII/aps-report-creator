@@ -1,13 +1,11 @@
-using System;
-using System.IO;
 using System.Net;
-using System.Net.Http;
-using System.Threading;
-using System.Threading.Tasks;
-using NUnit.Framework;
+
 using ipx.revit.reports.Services;
+
 using Moq;
 using Moq.Protected;
+
+using NUnit.Framework;
 
 namespace ipx.revit.reports.Tests.Services
 {
@@ -20,7 +18,7 @@ namespace ipx.revit.reports.Tests.Services
         public void Setup()
         {
             _testDataPath = Path.Combine(TestContext.CurrentContext.TestDirectory, "TestData");
-            
+
             // Create test directory if it doesn't exist
             if (!Directory.Exists(_testDataPath))
             {
@@ -46,7 +44,7 @@ namespace ipx.revit.reports.Tests.Services
                 });
 
             var httpClient = new HttpClient(mockHttpMessageHandler.Object);
-            
+
             // Use reflection to create a FileService with our mocked HttpClient
             var fileService = new FileService("test_user", "test_password");
             var fieldInfo = typeof(FileService).GetField("_httpClient", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
@@ -88,7 +86,7 @@ namespace ipx.revit.reports.Tests.Services
                 });
 
             var httpClient = new HttpClient(mockHttpMessageHandler.Object);
-            
+
             // Use reflection to create a FileService with our mocked HttpClient
             var fileService = new FileService("test_user", "test_password");
             var fieldInfo = typeof(FileService).GetField("_httpClient", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
@@ -106,7 +104,7 @@ namespace ipx.revit.reports.Tests.Services
         {
             // Arrange
             HttpRequestMessage? capturedRequest = null;
-            
+
             var mockHttpMessageHandler = new Mock<HttpMessageHandler>();
             mockHttpMessageHandler.Protected()
                 .Setup<Task<HttpResponseMessage>>(
@@ -122,7 +120,7 @@ namespace ipx.revit.reports.Tests.Services
                 });
 
             var httpClient = new HttpClient(mockHttpMessageHandler.Object);
-            
+
             // Use reflection to create a FileService with our mocked HttpClient
             var fileService = new FileService("test_user", "test_password");
             var fieldInfo = typeof(FileService).GetField("_httpClient", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
@@ -139,7 +137,7 @@ namespace ipx.revit.reports.Tests.Services
             Assert.That(capturedRequest, Is.Not.Null);
             Assert.That(capturedRequest!.Headers.Authorization, Is.Not.Null);
             Assert.That(capturedRequest.Headers.Authorization!.Scheme, Is.EqualTo("Basic"));
-            
+
             // The value should be base64 encoded "test_user:test_password"
             string expectedToken = Convert.ToBase64String(System.Text.Encoding.ASCII.GetBytes("test_user:test_password"));
             Assert.That(capturedRequest.Headers.Authorization.Parameter, Is.EqualTo(expectedToken));
@@ -161,4 +159,4 @@ namespace ipx.revit.reports.Tests.Services
             }
         }
     }
-} 
+}

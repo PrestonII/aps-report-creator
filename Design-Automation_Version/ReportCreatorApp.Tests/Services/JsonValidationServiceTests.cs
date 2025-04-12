@@ -1,10 +1,9 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using NUnit.Framework;
 using ipx.revit.reports.Models;
 using ipx.revit.reports.Services;
+
 using Newtonsoft.Json;
+
+using NUnit.Framework;
 
 namespace ipx.revit.reports.Tests.Services
 {
@@ -19,7 +18,7 @@ namespace ipx.revit.reports.Tests.Services
         {
             _service = new JsonValidationService();
             _testDataPath = Path.Combine(TestContext.CurrentContext.TestDirectory, "TestData");
-            
+
             // Create test directory if it doesn't exist
             if (!Directory.Exists(_testDataPath))
             {
@@ -44,7 +43,7 @@ namespace ipx.revit.reports.Tests.Services
                     'Password': 'test_pass'
                 }
             }";
-            
+
             var jsonPath = Path.Combine(_testDataPath, "valid_project.json");
             File.WriteAllText(jsonPath, jsonContent);
 
@@ -120,7 +119,7 @@ namespace ipx.revit.reports.Tests.Services
                 'OutputFileName': 'test_report.pdf',
                 'Environment': 'development'
             }}";
-            
+
             var jsonPath = Path.Combine(_testDataPath, "valid_project_with_viewtypes.json");
             File.WriteAllText(jsonPath, jsonContent);
 
@@ -222,10 +221,10 @@ namespace ipx.revit.reports.Tests.Services
                 ProjectName = "Test Project",
                 ProjectNumber = "2023-001",
                 ReportType = "AssetReport",
-                ViewTypes = new List<string> 
-                { 
-                    "FloorPlan", 
-                    "Elevation" 
+                ViewTypes = new List<string>
+                {
+                    "FloorPlan",
+                    "Elevation"
                 },
                 MaxViews = 10,
                 OutputFileName = "TestReport",
@@ -269,4 +268,4 @@ namespace ipx.revit.reports.Tests.Services
             }
         }
     }
-} 
+}

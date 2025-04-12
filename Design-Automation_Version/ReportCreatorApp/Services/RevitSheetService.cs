@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Autodesk.Revit.DB;
 
 namespace ipx.revit.reports.Services
@@ -33,7 +34,7 @@ namespace ipx.revit.reports.Services
         public ViewSheet CreateSheet(string sheetNumber, string sheetName)
         {
             _logger.Log($"Creating sheet: {sheetNumber} - {sheetName}");
-            
+
             // Find a title block
             FamilySymbol titleBlock = FindTitleBlock();
             if (titleBlock == null)
@@ -41,12 +42,12 @@ namespace ipx.revit.reports.Services
                 _logger.LogError("Could not find a title block");
                 throw new InvalidOperationException("Could not find a title block");
             }
-            
+
             // Create the sheet
             ViewSheet sheet = ViewSheet.Create(_doc, titleBlock.Id);
             sheet.SheetNumber = sheetNumber;
             sheet.Name = sheetName;
-            
+
             _logger.Log($"Sheet created successfully: {sheet.SheetNumber} - {sheet.Name}");
             return sheet;
         }
@@ -61,17 +62,17 @@ namespace ipx.revit.reports.Services
         public Viewport PlaceViewOnSheet(ViewSheet sheet, View view, XYZ position)
         {
             _logger.Log($"Placing view {view.Name} on sheet {sheet.Name}");
-            
+
             // Check if the view can be placed on a sheet
             if (!view.ViewType.ToString().Contains("Drafting"))
             {
                 _logger.LogError($"View {view.Name} cannot be placed on a sheet");
                 throw new InvalidOperationException($"View {view.Name} cannot be placed on a sheet");
             }
-            
+
             // Create the viewport
             Viewport viewport = Viewport.Create(_doc, sheet.Id, view.Id, position);
-            
+
             _logger.Log("View placed successfully on sheet");
             return viewport;
         }
@@ -87,19 +88,19 @@ namespace ipx.revit.reports.Services
                 .OfCategory(BuiltInCategory.OST_TitleBlocks)
                 .OfClass(typeof(FamilySymbol))
                 .FirstOrDefault(e => e is FamilySymbol) as FamilySymbol;
-                
+
             if (titleBlocks == null)
             {
                 _logger.LogWarning("No title blocks found in the document");
                 return null;
             }
-            
+
             // Ensure the symbol is active
             if (!titleBlocks.IsActive)
             {
                 titleBlocks.Activate();
             }
-            
+
             return titleBlocks;
         }
 
@@ -130,4 +131,4 @@ namespace ipx.revit.reports.Services
                 .FirstOrDefault(s => s.SheetNumber == sheetNumber);
         }
     }
-} 
+}

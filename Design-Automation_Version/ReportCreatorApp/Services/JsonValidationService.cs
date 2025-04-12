@@ -1,7 +1,9 @@
 using System;
 using System.IO;
-using Newtonsoft.Json;
+
 using ipx.revit.reports.Models;
+
+using Newtonsoft.Json;
 
 namespace ipx.revit.reports.Services
 {
@@ -38,48 +40,48 @@ namespace ipx.revit.reports.Services
                 _logger.LogDebug($"Raw JSON content: {jsonContent}");
 
                 ProjectData projectData = JsonConvert.DeserializeObject<ProjectData>(jsonContent);
-                
+
                 // Validate required fields
                 if (projectData == null)
                 {
                     _logger.LogError("Failed to deserialize JSON to ProjectData");
                     return null;
                 }
-                
+
                 if (string.IsNullOrWhiteSpace(projectData.ProjectName))
                 {
                     _logger.LogWarning("Project name is missing in the input JSON");
                 }
-                
+
                 if (projectData.ViewTypes == null || projectData.ViewTypes.Count == 0)
                 {
                     _logger.LogWarning("No view types specified in the input JSON");
                 }
-                
+
                 if (projectData.ImageData == null || projectData.ImageData.Count == 0)
                 {
                     _logger.LogWarning("No image data found in the input JSON");
                 }
-                
+
                 // Log successful parsing
                 _logger.Log($"Successfully parsed project data for project: {projectData.ProjectName}");
                 _logger.Log($"Report type: {projectData.ReportType}");
-                
+
                 if (projectData.ViewTypes != null)
                 {
                     _logger.Log($"Number of view types to export: {projectData.ViewTypes.Count}");
                 }
-                
+
                 if (projectData.ImageData != null)
                 {
                     _logger.Log($"Found {projectData.ImageData.Count} image assets in the input JSON");
                 }
 
-                if(projectData.Environment == null)
+                if (projectData.Environment == null)
                 {
-                  _logger.LogWarning("Could not find an environment in the ProjectData - using DEBUG as the environment for this session");
+                    _logger.LogWarning("Could not find an environment in the ProjectData - using DEBUG as the environment for this session");
                 }
-                
+
                 return projectData;
             }
             catch (Exception ex)
@@ -88,7 +90,7 @@ namespace ipx.revit.reports.Services
                 return null;
             }
         }
-        
+
         /// <summary>
         /// Validates the authentication information in the project data
         /// </summary>
@@ -101,30 +103,30 @@ namespace ipx.revit.reports.Services
                 _logger.LogError("Project data is null");
                 return false;
             }
-            
+
             if (projectData.Authentication == null)
             {
                 _logger.LogWarning("Authentication information is missing");
                 return false;
             }
-            
+
             string username = projectData.Authentication.Username;
             string password = projectData.Authentication.Password;
-            
+
             if (string.IsNullOrEmpty(username))
             {
                 _logger.LogWarning("Authentication username is missing");
                 return false;
             }
-            
+
             if (string.IsNullOrEmpty(password))
             {
                 _logger.LogWarning("Authentication password is missing");
                 return false;
             }
-            
+
             _logger.Log($"Authentication information is valid for user: {username}");
             return true;
         }
     }
-} 
+}

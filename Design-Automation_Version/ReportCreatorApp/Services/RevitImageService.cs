@@ -1,10 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
+
 using Autodesk.Revit.DB;
-using Autodesk.Revit.UI;
-using ipx.revit.reports.Models;
 
 namespace ipx.revit.reports.Services
 {
@@ -35,24 +33,24 @@ namespace ipx.revit.reports.Services
         public ViewDrafting CreateDraftingView(string viewName)
         {
             _logger.Log($"Creating drafting view: {viewName}");
-            
+
             // Find the drafting view type
             ViewFamilyType draftingViewType = new FilteredElementCollector(_doc)
                 .OfClass(typeof(ViewFamilyType))
                 .FirstOrDefault(v => v is ViewFamilyType vft && vft.ViewFamily == ViewFamily.Drafting) as ViewFamilyType;
-                
+
             if (draftingViewType == null)
             {
                 _logger.LogError("Could not find drafting view type");
                 throw new InvalidOperationException("Could not find drafting view type");
             }
-            
+
             // Create the drafting view
             ViewDrafting draftingView = ViewDrafting.Create(_doc, draftingViewType.Id);
-            
+
             // Set the name of the view
             draftingView.Name = viewName;
-            
+
             _logger.Log($"Drafting view created successfully: {draftingView.Name}");
             return draftingView;
         }
@@ -65,7 +63,7 @@ namespace ipx.revit.reports.Services
         public ImageType ImportImage(Document doc, string imagePath)
         {
             _logger.LogDebug($"Importing image from path: {imagePath}");
-            
+
             var imageRef = new ExternalResourceReference(
                 new Guid("00000000-0000-0000-0000-000000000000"), // Default version
                 new Dictionary<string, string>(), // No additional parameters
@@ -93,14 +91,14 @@ namespace ipx.revit.reports.Services
         public Element PlaceImageOnView(Document doc, ImageType imageType, View view, XYZ location, double scale)
         {
             _logger.LogDebug($"Placing image on view at location: ({location.X}, {location.Y}, {location.Z}) with scale: {scale}");
-            
+
             // Create placement options for the image
             // BoxPlacement.Center means the center of the image will be placed at the location
             ImagePlacementOptions placementOptions = new ImagePlacementOptions(location, BoxPlacement.Center);
-            
+
             // Create a new image instance at the specified location
             ImageInstance image = ImageInstance.Create(doc, view, imageType.Id, placementOptions);
-            
+
             // Apply scaling if needed (using a different approach in Revit 2023)
             if (Math.Abs(scale - 1.0) > 0.001)
             {
@@ -110,17 +108,17 @@ namespace ipx.revit.reports.Services
                     // Get height and width parameters directly
                     Parameter heightParam = image.get_Parameter(BuiltInParameter.RASTER_SHEETWIDTH);
                     Parameter widthParam = image.get_Parameter(BuiltInParameter.RASTER_SHEETHEIGHT);
-                    
+
                     if (heightParam != null && widthParam != null)
                     {
                         // Get current values
                         double currentWidth = widthParam.AsDouble();
                         double currentHeight = heightParam.AsDouble();
-                        
+
                         // Set new scaled values
                         widthParam.Set(currentWidth * scale);
                         heightParam.Set(currentHeight * scale);
-                        
+
                         _logger.LogDebug($"Applied scaling of {scale} using dimension parameters");
                     }
                     else
@@ -133,9 +131,9 @@ namespace ipx.revit.reports.Services
                     _logger.LogWarning($"Error applying image scaling: {ex.Message}");
                 }
             }
-            
+
             _logger.Log("Image placed successfully on view");
             return image;
         }
     }
-} 
+}

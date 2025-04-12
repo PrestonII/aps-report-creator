@@ -8,6 +8,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ReportCreatorApp.Tests", "R
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{35655A06-61AD-4211-AF13-7F0E96D464F1}"
 	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
 		publish-appbundle.ps1 = publish-appbundle.ps1
 	EndProjectSection
 EndProject

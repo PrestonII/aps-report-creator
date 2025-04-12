@@ -1,9 +1,6 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using NUnit.Framework;
 using ipx.revit.reports.Services;
-using ipx.revit.reports.Models;
+
+using NUnit.Framework;
 
 namespace ipx.revit.reports.Tests.Services
 {
@@ -18,7 +15,7 @@ namespace ipx.revit.reports.Tests.Services
         {
             _service = new AssetService();
             _testDataPath = Path.Combine(TestContext.CurrentContext.TestDirectory, "TestData");
-            
+
             // Create test directory if it doesn't exist
             if (!Directory.Exists(_testDataPath))
             {
@@ -40,7 +37,7 @@ namespace ipx.revit.reports.Tests.Services
                     'AssetUrl': 'https://example.com/image.jpg'
                 }
             ]";
-            
+
             var jsonPath = Path.Combine(_testDataPath, "valid_assets.json");
             File.WriteAllText(jsonPath, jsonContent);
 
@@ -107,4 +104,4 @@ namespace ipx.revit.reports.Tests.Services
             }
         }
     }
-} 
+}

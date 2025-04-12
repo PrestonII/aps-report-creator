@@ -22,14 +22,14 @@ namespace ipx.revit.reports.Services
             if (_isDev)
             {
                 string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-                
+
                 _logFilePath = Path.Combine(desktopPath, $"RevitReportLog_{timestamp}.txt");
             }
-            else if( _isDebug) 
+            else if (_isDebug)
             {
                 _logFilePath = $"RevitReportLog_{timestamp}.txt";
             }
-            else if( _isProduction)
+            else if (_isProduction)
             {
                 _logFilePath = $"RevitReportLog_{timestamp}.txt";
             }
@@ -79,4 +79,4 @@ namespace ipx.revit.reports.Services
             Log(message, "DEBUG");
         }
     }
-} 
+}

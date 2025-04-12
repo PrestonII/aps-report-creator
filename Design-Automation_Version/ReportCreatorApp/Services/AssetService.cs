@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using Newtonsoft.Json;
+
 using ipx.revit.reports.Models;
+
+using Newtonsoft.Json;
 
 namespace ipx.revit.reports.Services
 {
@@ -39,4 +41,4 @@ namespace ipx.revit.reports.Services
             }
         }
     }
-} 
+}
