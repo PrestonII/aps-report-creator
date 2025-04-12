@@ -56,13 +56,15 @@
     <ItemGroup>
       <RevitAssemblies Include="$(Revit2023Path)\RevitAPI.dll" />
     </ItemGroup>
-    <Copy SourceFiles="@(RevitAssemblies)"
-          DestinationFolder="$(OutputPath)"
-          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(RevitAssemblies)" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true" />
   </Target>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
     <Exec Command="if &quot;$(Configuration)&quot; == &quot;Debug&quot; (&#xD;&#xA;  if exist &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot; copy &quot;$(ProjectDir)*.addin&quot; &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot;&#xD;&#xA;  if exist &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot; copy &quot;$(ProjectDir)$(OutputPath)*.dll&quot; &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot;&#xD;&#xA;  if exist &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot; copy &quot;$(ProjectDir)$(OutputPath)*.pdb&quot; &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot;&#xD;&#xA;  if exist &quot;$(ProgramData)\Autodesk\REVIT\Addins\2023&quot; copy &quot;$(ProjectDir)*.addin&quot; &quot;$(ProgramData)\Autodesk\REVIT\Addins\2023&quot;&#xD;&#xA;  if exist &quot;$(ProgramData)\Autodesk\REVIT\Addins\2023&quot; copy &quot;$(ProjectDir)$(OutputPath)*.dll&quot; &quot;$(ProgramData)\Autodesk\REVIT\Addins\2023&quot;&#xD;&#xA;  if exist &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot; copy &quot;$(ProjectDir)$(OutputPath)*.pdb&quot; &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot;&#xD;&#xA;)&#xD;&#xA;&#xD;&#xA;if &quot;$(Configuration)&quot; == &quot;Release&quot; (&#xD;&#xA;  powershell.exe -ExecutionPolicy Bypass -File &quot;$(SolutionDir)publish-appbundle.ps1&quot;&#xD;&#xA;)" />
+  </Target>
+
+  <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
+    <Exec Command="powershell -ExecutionPolicy Bypass -File &quot;$(SolutionDir)setup-design-automation-playground.ps1&quot;&#xD;&#xA;" />
   </Target>
 
 
