@@ -23,20 +23,20 @@ namespace ipx.revit.reports.Services
             return result;
         }
 
-        public static void ValidateDesignAutomationEnvironment(DesignAutomationData data, LoggingService _logger, ProjectData projectData)
+        public static void ValidateDesignAutomationEnvironment(DesignAutomationData data, ProjectData projectData)
         {
             if (data == null)
             {
-                _logger.LogError("DesignAutomationData is null.");
+                LoggingService.LogError("DesignAutomationData is null.");
                 throw new ArgumentNullException(nameof(data));
             }
 
-            _logger.Log("Validating Design Automation Environment...");
+            LoggingService.Log("Validating Design Automation Environment...");
 
             _rvtApp = data.RevitApp;
             if (_rvtApp == null)
             {
-                _logger.LogError("RevitApp is null.");
+                LoggingService.LogError("RevitApp is null.");
                 throw new InvalidDataException(nameof(_rvtApp));
             }
 
@@ -44,32 +44,32 @@ namespace ipx.revit.reports.Services
             if (string.IsNullOrWhiteSpace(modelPath) && data.RevitDoc != null)
             {
                 modelPath = data.RevitDoc.PathName;
-                _logger.LogDebug($"Fallback: modelPath from RevitDoc.PathName: '{modelPath}'");
+                LoggingService.LogDebug($"Fallback: modelPath from RevitDoc.PathName: '{modelPath}'");
             }
 
-            _logger.LogDebug($"Final modelPath: '{modelPath}'");
+            LoggingService.LogDebug($"Final modelPath: '{modelPath}'");
 
             if (String.IsNullOrWhiteSpace(modelPath))
             {
-                _logger.LogError("modelPath is still null or whitespace after fallback.");
+                LoggingService.LogError("modelPath is still null or whitespace after fallback.");
                 throw new InvalidDataException(nameof(modelPath));
             }
 
             _doc = data.RevitDoc;
             if (_doc == null)
             {
-                _logger.LogError("RevitDoc is null. Could not open document.");
+                LoggingService.LogError("RevitDoc is null. Could not open document.");
                 throw new InvalidOperationException("Could not open document.");
             }
 
-            _logger.Log("Revit document opened successfully.");
+            LoggingService.Log("Revit document opened successfully.");
 
             if (projectData == null)
             {
-                _logger.LogError("Failed to parse input JSON.");
+                LoggingService.LogError("Failed to parse input JSON.");
                 throw new InvalidOperationException("Failed to parse input JSON.");
             }
-            _logger.Log("Design Automation Environment validated!");
+            LoggingService.Log("Design Automation Environment validated!");
         }
     }
 }

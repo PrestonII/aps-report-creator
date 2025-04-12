@@ -5,18 +5,24 @@ using System.Text;
 
 namespace ipx.revit.reports.Services
 {
-    public class LoggingService
+    public static class LoggingService
     {
-        private readonly string _logFilePath;
-        private readonly bool _isProduction; // the app is running in production
-        private readonly bool _isDev; // the app is running on a local Revit machine
-        private readonly bool _isDebug; // the app is being tested on the client/server side
+        private static readonly string _logFilePath;
+        private static readonly bool _isProduction; // the app is running in production
+        private static readonly bool _isDev; // the app is running on a local Revit machine
+        private static readonly bool _isDebug; // the app is being tested on the client/server side
+        private static string _environment = "debug";
 
-        public LoggingService(string environment = "debug")
+        public static void SetEnvironment(string environment = "debug")
         {
-            _isProduction = environment?.ToLower() == "production";
-            _isDev = environment?.ToLower() == "development";
-            _isDebug = environment?.ToLower() == "debug";
+            _environment = environment;
+        }
+
+        static LoggingService()
+        {
+            _isProduction = _environment?.ToLower() == "production";
+            _isDev = _environment?.ToLower() == "development";
+            _isDebug = _environment?.ToLower() == "debug";
 
             string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
 
@@ -36,7 +42,7 @@ namespace ipx.revit.reports.Services
             else { _logFilePath = String.Empty; }
         }
 
-        public void Log(string message, string level = "INFO")
+        public static void Log(string message, string level = "INFO")
         {
             try 
             { 
@@ -66,7 +72,7 @@ namespace ipx.revit.reports.Services
             }
         }
 
-        public void LogError(string message, Exception? ex = null)
+        public static void LogError(string message, Exception? ex = null)
         {
             StringBuilder errorMessage = new StringBuilder(message);
             if (ex != null)
@@ -77,12 +83,12 @@ namespace ipx.revit.reports.Services
             Log(errorMessage.ToString(), "ERROR");
         }
 
-        public void LogWarning(string message)
+        public static void LogWarning(string message)
         {
             Log(message, "WARNING");
         }
 
-        public void LogDebug(string message)
+        public static void LogDebug(string message)
         {
             Log(message, "DEBUG");
         }

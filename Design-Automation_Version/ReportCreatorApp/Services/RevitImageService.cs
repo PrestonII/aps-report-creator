@@ -12,17 +12,15 @@ namespace ipx.revit.reports.Services
     public class RevitImageService
     {
         private readonly Document _doc;
-        private readonly LoggingService _logger;
 
         /// <summary>
         /// Initializes a new instance of the RevitImageService class
         /// </summary>
         /// <param name="doc">The Revit document</param>
         /// <param name="environment">The environment setting for logging</param>
-        public RevitImageService(Document doc, string environment = "development")
+        public RevitImageService(Document doc)
         {
             _doc = doc ?? throw new ArgumentNullException(nameof(doc));
-            _logger = new LoggingService(environment);
         }
 
         /// <summary>
@@ -32,7 +30,7 @@ namespace ipx.revit.reports.Services
         /// <returns>The created drafting view</returns>
         public ViewDrafting CreateDraftingView(string viewName)
         {
-            _logger.Log($"Creating drafting view: {viewName}");
+            LoggingService.Log($"Creating drafting view: {viewName}");
 
             // Find the drafting view type
             ViewFamilyType draftingViewType = new FilteredElementCollector(_doc)
@@ -41,7 +39,7 @@ namespace ipx.revit.reports.Services
 
             if (draftingViewType == null)
             {
-                _logger.LogError("Could not find drafting view type");
+                LoggingService.LogError("Could not find drafting view type");
                 throw new InvalidOperationException("Could not find drafting view type");
             }
 
@@ -51,7 +49,7 @@ namespace ipx.revit.reports.Services
             // Set the name of the view
             draftingView.Name = viewName;
 
-            _logger.Log($"Drafting view created successfully: {draftingView.Name}");
+            LoggingService.Log($"Drafting view created successfully: {draftingView.Name}");
             return draftingView;
         }
 
@@ -62,7 +60,7 @@ namespace ipx.revit.reports.Services
         /// <returns>The imported image type</returns>
         public ImageType ImportImage(Document doc, string imagePath)
         {
-            _logger.LogDebug($"Importing image from path: {imagePath}");
+            LoggingService.LogDebug($"Importing image from path: {imagePath}");
 
             var imageRef = new ExternalResourceReference(
                 new Guid("00000000-0000-0000-0000-000000000000"), // Default version
@@ -75,7 +73,7 @@ namespace ipx.revit.reports.Services
                 Resolution = 300
             };
 
-            _logger.Log("Image import options created successfully");
+            LoggingService.Log("Image import options created successfully");
             return ImageType.Create(doc, options);
         }
 
@@ -90,7 +88,7 @@ namespace ipx.revit.reports.Services
         /// <returns>The placed image element</returns>
         public Element PlaceImageOnView(Document doc, ImageType imageType, View view, XYZ location, double scale)
         {
-            _logger.LogDebug($"Placing image on view at location: ({location.X}, {location.Y}, {location.Z}) with scale: {scale}");
+            LoggingService.LogDebug($"Placing image on view at location: ({location.X}, {location.Y}, {location.Z}) with scale: {scale}");
 
             // Create placement options for the image
             // BoxPlacement.Center means the center of the image will be placed at the location
@@ -119,20 +117,20 @@ namespace ipx.revit.reports.Services
                         widthParam.Set(currentWidth * scale);
                         heightParam.Set(currentHeight * scale);
 
-                        _logger.LogDebug($"Applied scaling of {scale} using dimension parameters");
+                        LoggingService.LogDebug($"Applied scaling of {scale} using dimension parameters");
                     }
                     else
                     {
-                        _logger.LogWarning("Could not find width/height parameters for scaling the image");
+                        LoggingService.LogWarning("Could not find width/height parameters for scaling the image");
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning($"Error applying image scaling: {ex.Message}");
+                    LoggingService.LogWarning($"Error applying image scaling: {ex.Message}");
                 }
             }
 
-            _logger.Log("Image placed successfully on view");
+            LoggingService.Log("Image placed successfully on view");
             return image;
         }
     }
