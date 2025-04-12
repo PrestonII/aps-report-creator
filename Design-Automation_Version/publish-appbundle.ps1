@@ -140,9 +140,9 @@ function Create-AppBundleZip {
     $sourceFiles = @(
         @{Source = "ReportCreatorApp.dll"; Dest = "ReportCreatorApp.dll"},
         @{Source = "CreateReportsApp.addin"; Dest = "CreateReportsApp.addin"}
-        @{Source = "DesignAutomationBridge.dll"; Dest = "DesignAutomationBridge.dll"},
-        @{Source = "RevitAPI.dll"; Dest = "RevitAPI.dll"},
-        @{Source = "Newtonsoft.Json.dll"; Dest = "Newtonsoft.Json.dll"}
+        #@{Source = "DesignAutomationBridge.dll"; Dest = "DesignAutomationBridge.dll"},
+        #@{Source = "RevitAPI.dll"; Dest = "RevitAPI.dll"},
+        #@{Source = "Newtonsoft.Json.dll"; Dest = "Newtonsoft.Json.dll"}
     )
     
     foreach ($file in $sourceFiles) {

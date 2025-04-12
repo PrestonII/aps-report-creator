@@ -20,7 +20,7 @@ namespace ipx.revit.reports
 
       public ExternalDBApplicationResult OnStartup(ControlledApplication app)
       {
-        Console.WriteLine("WELCOME FROM IPX - WE'RE LIVE AND LOGGING!");
+         Console.WriteLine("WELCOME FROM IPX - WE'RE LIVE AND LOGGING!");
          DesignAutomationBridge.DesignAutomationReadyEvent += HandleDesignAutomationReadyEvent;
          return ExternalDBApplicationResult.Succeeded;
       }
@@ -34,25 +34,32 @@ namespace ipx.revit.reports
       {
         try
         {
-          var task = ExportToPdfs(e.DesignAutomationData); 
-          // ensures sync completion and catches exception
+          Console.WriteLine("IPX LOGGER: DesignAutomationReadyEvent: Starting event handling");
+          var data = ValidateProjectData();
+          _logger = new LoggingService(data.Environment);
+          var task = ExportToPdfs(e.DesignAutomationData, data); 
           e.Succeeded = task;
         }
         catch (Exception ex)
         {
-          //Trace.WriteLine($"[ERROR] Top-level failure in DA event: {ex.Message}");
-          //Trace.WriteLine(ex.StackTrace);
-          //Trace.Flush();
           e.Succeeded = false;
         }
         finally
         {
-          _logger.WriteBufferToFile();
+          Console.WriteLine("IPX LOGGER: DesignAutomationReadyEvent: Ending event handling");
         }
       }
 
+    public ProjectData ValidateProjectData()
+    {
+      // Validate and parse the input JSON file
+      JsonValidationService jsonValidationService = new();
+      ProjectData projectData = jsonValidationService.ValidateAndParseProjectData("params.json");
+      return projectData;
+    }
 
-    public bool ExportToPdfs(DesignAutomationData data)
+
+    public bool ExportToPdfs(DesignAutomationData data, ProjectData projectData)
     {
         if (data == null)
         {
@@ -69,20 +76,20 @@ namespace ipx.revit.reports
             throw new InvalidDataException(nameof(rvtApp));
         }
 
-        string modelPath = data.FilePath;
-        if (string.IsNullOrWhiteSpace(modelPath) && data.RevitDoc != null)
-        {
-            modelPath = data.RevitDoc.PathName;
-            _logger.LogDebug($"Fallback: modelPath from RevitDoc.PathName: '{modelPath}'");
-        }
+        //string modelPath = data.FilePath;
+        //if (string.IsNullOrWhiteSpace(modelPath) && data.RevitDoc != null)
+        //{
+        //    modelPath = data.RevitDoc.PathName;
+        //    _logger.LogDebug($"Fallback: modelPath from RevitDoc.PathName: '{modelPath}'");
+        //}
 
-        _logger.LogDebug($"Final modelPath: '{modelPath}'");
+        //_logger.LogDebug($"Final modelPath: '{modelPath}'");
 
-        if (String.IsNullOrWhiteSpace(modelPath))
-        {
-            _logger.LogError("modelPath is still null or whitespace after fallback.");
-            throw new InvalidDataException(nameof(modelPath));
-        }
+        //if (String.IsNullOrWhiteSpace(modelPath))
+        //{
+        //    _logger.LogError("modelPath is still null or whitespace after fallback.");
+        //    throw new InvalidDataException(nameof(modelPath));
+        //}
 
         Document doc = data.RevitDoc;
         if (doc == null)
@@ -93,9 +100,6 @@ namespace ipx.revit.reports
 
         _logger.Log("Revit document opened successfully.");
 
-        // Validate and parse the input JSON file
-        JsonValidationService jsonValidationService = new JsonValidationService();
-        ProjectData projectData = jsonValidationService.ValidateAndParseProjectData("params.json");
         
         if (projectData == null)
         {
@@ -182,7 +186,7 @@ namespace ipx.revit.reports
         }
         finally
         {
-          _logger.WriteBufferToFile();
+          //_logger.WriteBufferToFile();
         }
       }
     }

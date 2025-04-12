@@ -12,7 +12,7 @@ namespace ipx.revit.reports.Services
     {
         private readonly LoggingService _logger;
 
-        public JsonValidationService(string environment = "development")
+        public JsonValidationService(string environment = "debug")
         {
             _logger = new LoggingService(environment);
         }
@@ -73,6 +73,11 @@ namespace ipx.revit.reports.Services
                 if (projectData.ImageData != null)
                 {
                     _logger.Log($"Found {projectData.ImageData.Count} image assets in the input JSON");
+                }
+
+                if(projectData.Environment == null)
+                {
+                  _logger.LogWarning("Could not find an environment in the ProjectData - using DEBUG as the environment for this session");
                 }
                 
                 return projectData;

@@ -7,34 +7,45 @@ namespace ipx.revit.reports.Services
     public class LoggingService
     {
         private readonly string _logFilePath;
-        private readonly bool _isProduction;
+        private readonly bool _isProduction; // the app is running in production
+        private readonly bool _isDev; // the app is running on a local Revit machine
+        private readonly bool _isDebug; // the app is being tested on the client/server side
 
-        public LoggingService(string environment)
+        public LoggingService(string environment = "debug")
         {
             _isProduction = environment?.ToLower() == "production";
-            
-            if (!_isProduction)
+            _isDev = environment?.ToLower() == "development";
+            _isDebug = environment?.ToLower() == "debug";
+
+            string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+
+            if (_isDev)
             {
                 string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                
                 _logFilePath = Path.Combine(desktopPath, $"RevitReportLog_{timestamp}.txt");
             }
-            else
+            else if( _isDebug) 
             {
-                _logFilePath = string.Empty;
+                _logFilePath = $"RevitReportLog_{timestamp}.txt";
             }
+            else if( _isProduction)
+            {
+                _logFilePath = $"RevitReportLog_{timestamp}.txt";
+            }
+            else { _logFilePath = String.Empty; }
         }
 
         public void Log(string message, string level = "INFO")
         {
             string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
-            string logMessage = $"[{timestamp}] [{level}] {message}";
+            string logMessage = $"[{timestamp}] [IPX:] [{level}] {message}";
 
             // Always write to console
             Console.WriteLine(logMessage);
 
             // Write to file if not in production
-            if (!_isProduction && !string.IsNullOrEmpty(_logFilePath))
+            if (!string.IsNullOrEmpty(_logFilePath))
             {
                 try
                 {
