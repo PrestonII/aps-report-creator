@@ -36,7 +36,7 @@ namespace ipx.revit.reports.Models
         public List<AssetData> ImageData { get; set; } = new List<AssetData>();
 
         [JsonProperty("environment")]
-        public string Environment { get; set; } = "development";
+        public string Environment { get; set; } = "debug";
     }
     
     /// <summary>

@@ -19,12 +19,52 @@
   <ItemGroup>
     <PackageReference Include="Autodesk.Revit.SDK" Version="2023.0.0.2001" PrivateAssets="All" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-    <PackageReference Include="Autodesk.Forge.DesignAutomation.Revit" Version="2018.0.0" />
+    <PackageReference Include="Autodesk.Forge.DesignAutomation.Revit" Version="2023.0.1" />
+    <PackageReference Include="Autodesk.Revit.SDK" Version="2023.0.0.2001" />
     <PackageReference Include="System.Net.Http" Version="4.3.4" />
   </ItemGroup>
 
-  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="if exist &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot; copy &quot;$(ProjectDir)*.addin&quot; &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot;&#xD;&#xA;if exist &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot; copy &quot;$(ProjectDir)$(OutputPath)*.dll&quot; &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot;&#xD;&#xA;if exist &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot; copy &quot;$(ProjectDir)$(OutputPath)*.pdb&quot; &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot;&#xD;&#xA;if exist &quot;$(ProgramData)\Autodesk\REVIT\Addins\2023&quot; copy &quot;$(ProjectDir)*.addin&quot; &quot;$(ProgramData)\Autodesk\REVIT\Addins\2023&quot;&#xD;&#xA;if exist &quot;$(ProgramData)\Autodesk\REVIT\Addins\2023&quot; copy &quot;$(ProjectDir)$(OutputPath)*.dll&quot; &quot;$(ProgramData)\Autodesk\REVIT\Addins\2023&quot;&#xD;&#xA;if exist &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot; copy &quot;$(ProjectDir)$(OutputPath)*.pdb&quot; &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot;&#xD;&#xA;if exist &quot;$(USERPROFILE)\Downloads&quot; copy &quot;$(ProjectDir)$(OutputPath)data_samples\params.json&quot; &quot;$(USERPROFILE)\Downloads&quot;" />
+  <ItemGroup>
+    <Reference Include="System.Net.Http" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="data\**\*.*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="CreateReportsApp.addin">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <PropertyGroup>
+    <Revit2023Path>C:\Program Files\Autodesk\Revit 2023</Revit2023Path>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="RevitAPI">
+      <HintPath>$(Revit2023Path)\RevitAPI.dll</HintPath>
+      <Private>true</Private>
+      <CopyLocal>true</CopyLocal>
+    </Reference>
+  </ItemGroup>
+
+  <Target Name="CopyRevitDlls" AfterTargets="Build">
+    <ItemGroup>
+      <RevitAssemblies Include="$(Revit2023Path)\RevitAPI.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(RevitAssemblies)"
+          DestinationFolder="$(OutputPath)"
+          SkipUnchangedFiles="true" />
   </Target>
+
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="if &quot;$(Configuration)&quot; == &quot;Debug&quot; (&#xD;&#xA;  if exist &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot; copy &quot;$(ProjectDir)*.addin&quot; &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot;&#xD;&#xA;  if exist &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot; copy &quot;$(ProjectDir)$(OutputPath)*.dll&quot; &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot;&#xD;&#xA;  if exist &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot; copy &quot;$(ProjectDir)$(OutputPath)*.pdb&quot; &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot;&#xD;&#xA;  if exist &quot;$(ProgramData)\Autodesk\REVIT\Addins\2023&quot; copy &quot;$(ProjectDir)*.addin&quot; &quot;$(ProgramData)\Autodesk\REVIT\Addins\2023&quot;&#xD;&#xA;  if exist &quot;$(ProgramData)\Autodesk\REVIT\Addins\2023&quot; copy &quot;$(ProjectDir)$(OutputPath)*.dll&quot; &quot;$(ProgramData)\Autodesk\REVIT\Addins\2023&quot;&#xD;&#xA;  if exist &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot; copy &quot;$(ProjectDir)$(OutputPath)*.pdb&quot; &quot;$(AppData)\Autodesk\REVIT\Addins\2023&quot;&#xD;&#xA;)&#xD;&#xA;&#xD;&#xA;if &quot;$(Configuration)&quot; == &quot;Release&quot; (&#xD;&#xA;  powershell.exe -ExecutionPolicy Bypass -File &quot;$(SolutionDir)publish-appbundle.ps1&quot;&#xD;&#xA;)" />
+  </Target>
+
+
 
 </Project> 

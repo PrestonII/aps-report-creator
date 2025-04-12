@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -19,6 +20,7 @@ namespace ipx.revit.reports
 
       public ExternalDBApplicationResult OnStartup(ControlledApplication app)
       {
+         Console.WriteLine("WELCOME FROM IPX - WE'RE LIVE AND LOGGING!");
          DesignAutomationBridge.DesignAutomationReadyEvent += HandleDesignAutomationReadyEvent;
          return ExternalDBApplicationResult.Succeeded;
       }
@@ -30,10 +32,34 @@ namespace ipx.revit.reports
 
       public void HandleDesignAutomationReadyEvent(object sender, DesignAutomationReadyEventArgs e)
       {
-         e.Succeeded = ExportToPdfs(e.DesignAutomationData);
+        try
+        {
+          Console.WriteLine("IPX LOGGER: DesignAutomationReadyEvent: Starting event handling");
+          var data = ValidateProjectData();
+          _logger = new LoggingService(data.Environment);
+          var task = ExportToPdfs(e.DesignAutomationData, data); 
+          e.Succeeded = task;
+        }
+        catch (Exception ex)
+        {
+          e.Succeeded = false;
+        }
+        finally
+        {
+          Console.WriteLine("IPX LOGGER: DesignAutomationReadyEvent: Ending event handling");
+        }
+      }
+
+    public ProjectData ValidateProjectData()
+    {
+      // Validate and parse the input JSON file
+      JsonValidationService jsonValidationService = new();
+      ProjectData projectData = jsonValidationService.ValidateAndParseProjectData("params.json");
+      return projectData;
     }
 
-    public bool ExportToPdfs(DesignAutomationData data)
+
+    public bool ExportToPdfs(DesignAutomationData data, ProjectData projectData)
     {
         if (data == null)
         {
@@ -50,14 +76,20 @@ namespace ipx.revit.reports
             throw new InvalidDataException(nameof(rvtApp));
         }
 
-        string modelPath = data.FilePath;
-        _logger.LogDebug($"modelPath from DesignAutomationData.FilePath: '{modelPath}'");
+        //string modelPath = data.FilePath;
+        //if (string.IsNullOrWhiteSpace(modelPath) && data.RevitDoc != null)
+        //{
+        //    modelPath = data.RevitDoc.PathName;
+        //    _logger.LogDebug($"Fallback: modelPath from RevitDoc.PathName: '{modelPath}'");
+        //}
 
-        if (String.IsNullOrWhiteSpace(modelPath))
-        {
-            _logger.LogError("modelPath is null or whitespace.");
-            throw new InvalidDataException(nameof(modelPath));
-        }
+        //_logger.LogDebug($"Final modelPath: '{modelPath}'");
+
+        //if (String.IsNullOrWhiteSpace(modelPath))
+        //{
+        //    _logger.LogError("modelPath is still null or whitespace after fallback.");
+        //    throw new InvalidDataException(nameof(modelPath));
+        //}
 
         Document doc = data.RevitDoc;
         if (doc == null)
@@ -70,7 +102,7 @@ namespace ipx.revit.reports
 
         // Validate and parse the input JSON file
         JsonValidationService jsonValidationService = new JsonValidationService();
-        ProjectData projectData = jsonValidationService.ValidateAndParseProjectData($"{Path.GetDirectoryName(modelPath)}\\params.json");
+        ProjectData projectData = jsonValidationService.ValidateAndParseProjectData("params.json");
         
         if (projectData == null)
         {
@@ -131,20 +163,35 @@ namespace ipx.revit.reports
                     }
                 }
 
-                // Limit the number of views if specified
-                if (projectData.MaxViews > 0 && views.Count > projectData.MaxViews)
-                {
-                    _logger.Log($"Limiting views from {views.Count} to {projectData.MaxViews}");
-                    views = views.Take(projectData.MaxViews).ToList();
-                }
-                
-                // Generate the image report
-                sheetIds = reportService.GenerateImageReport(projectData);
+            // Limit the number of views if specified
+            if (projectData.MaxViews > 0 && views.Count > projectData.MaxViews)
+            {
+                _logger.Log($"Limiting views from {views.Count} to {projectData.MaxViews}");
+                views = views.Take(projectData.MaxViews).ToList();
+            }
+
+            // Get authentication credentials
+            string username = projectData.Authentication?.Username;
+            string password = projectData.Authentication?.Password;
+            
+            if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
+            {
+                _logger.LogWarning("Authentication credentials not provided. Image downloading may fail.");
+            }
+            else
+            {
+                _logger.Log($"Using provided authentication credentials for user: {username}");
             }
             
-            // Export the sheets to PDF
-            string outputFileName = projectData.OutputFileName ?? "AssetReport";
-            reportService.ExportSheetsToPdf(sheetIds, outputFileName);
+            // Create the report generation service
+            ReportGenerationService reportService = new ReportGenerationService(doc, username, password);
+            
+            // Generate the image report
+            List<ElementId> sheetIds = await reportService.GenerateImageReport(projectData);
+            
+            // // Export the sheets to PDF
+            // string outputFileName = projectData.OutputFileName ?? "AssetReport";
+            // reportService.ExportSheetsToPdf(sheetIds, outputFileName);
             
             _logger.Log("Report generation process completed successfully");
             tx.Commit();
@@ -155,6 +202,10 @@ namespace ipx.revit.reports
             _logger.LogError("Exception during report generation", ex);
             tx.RollBack();
             return false;
+        }
+        finally
+        {
+          //_logger.WriteBufferToFile();
         }
       }
     }
