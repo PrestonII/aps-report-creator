@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 
 using Autodesk.Revit.DB;
@@ -9,48 +8,47 @@ namespace ipx.revit.reports.Services
     /// <summary>
     /// Service for handling image operations in Revit
     /// </summary>
-    public class RevitImageService
+    public static class RevitImageService
     {
-        private readonly Document _doc;
-
-        /// <summary>
-        /// Initializes a new instance of the RevitImageService class
-        /// </summary>
-        /// <param name="doc">The Revit document</param>
-        /// <param name="environment">The environment setting for logging</param>
-        public RevitImageService(Document doc)
-        {
-            _doc = doc ?? throw new ArgumentNullException(nameof(doc));
-        }
-
         /// <summary>
         /// Creates a new drafting view in Revit
         /// </summary>
         /// <param name="viewName">Name for the new drafting view</param>
         /// <returns>The created drafting view</returns>
-        public ViewDrafting CreateDraftingView(string viewName)
+        public static ViewDrafting CreateDraftingView(Document _doc, string viewName)
         {
-            LoggingService.Log($"Creating drafting view: {viewName}");
-
-            // Find the drafting view type
-            ViewFamilyType draftingViewType = new FilteredElementCollector(_doc)
-                .OfClass(typeof(ViewFamilyType))
-                .FirstOrDefault(v => v is ViewFamilyType vft && vft.ViewFamily == ViewFamily.Drafting) as ViewFamilyType;
-
-            if (draftingViewType == null)
+            try
             {
-                LoggingService.LogError("Could not find drafting view type");
-                throw new InvalidOperationException("Could not find drafting view type");
+                LoggingService.Log($"Creating drafting view: {viewName}");
+
+                // Find the drafting view type
+                ViewFamilyType? draftingViewType = new FilteredElementCollector(_doc)
+                    .OfClass(typeof(ViewFamilyType))
+                    .FirstOrDefault(v => v is ViewFamilyType vft && vft.ViewFamily == ViewFamily.Drafting) as ViewFamilyType;
+
+                if (draftingViewType == null)
+                {
+                    LoggingService.LogError("Could not find drafting view type");
+                    throw new InvalidOperationException("Could not find drafting view type");
+                }
+
+
+                // Create the drafting view
+                ViewDrafting draftingView = ViewDrafting.Create(_doc, draftingViewType.Id);
+
+
+                // Set the name of the view
+                draftingView.Name = viewName;
+
+
+                LoggingService.Log($"Drafting view created successfully: {draftingView.Name}");
+                return draftingView;
             }
-
-            // Create the drafting view
-            ViewDrafting draftingView = ViewDrafting.Create(_doc, draftingViewType.Id);
-
-            // Set the name of the view
-            draftingView.Name = viewName;
-
-            LoggingService.Log($"Drafting view created successfully: {draftingView.Name}");
-            return draftingView;
+            catch (Exception ex)
+            {
+                LoggingService.LogError($"Failed to creating drafting view: {ex.Message}");
+                throw ex;
+            }
         }
 
         /// <summary>
@@ -58,15 +56,16 @@ namespace ipx.revit.reports.Services
         /// </summary>
         /// <param name="imagePath">Path to the image file</param>
         /// <returns>The imported image type</returns>
-        public ImageType ImportImage(Document doc, string imagePath)
+        public static ImageType ImportImage(Document doc, string imagePath)
         {
             LoggingService.LogDebug($"Importing image from path: {imagePath}");
 
-            var imageRef = new ExternalResourceReference(
-                new Guid("00000000-0000-0000-0000-000000000000"), // Default version
-                new Dictionary<string, string>(), // No additional parameters
-                "ImageType", // Resource type
-                imagePath); // Resource path
+            var imageRef = ExternalResourceReference.CreateLocalResource(
+                doc,
+                ExternalResourceTypes.BuiltInExternalResourceTypes.Image,
+                ModelPathUtils.ConvertUserVisiblePathToModelPath(imagePath),
+                PathType.Relative
+            );
 
             var options = new ImageTypeOptions(imageRef, ImageTypeSource.Import)
             {
@@ -86,8 +85,9 @@ namespace ipx.revit.reports.Services
         /// <param name="location">The position to place the image</param>
         /// <param name="scale">The scale factor for the image</param>
         /// <returns>The placed image element</returns>
-        public Element PlaceImageOnView(Document doc, ImageType imageType, View view, XYZ location, double scale)
+        public static Element PlaceImageOnView(Document doc, ImageType imageType, View view, XYZ? location = null, double scale = 1.0)
         {
+            location ??= new XYZ(0, 0, 0);
             LoggingService.LogDebug($"Placing image on view at location: ({location.X}, {location.Y}, {location.Z}) with scale: {scale}");
 
             // Create placement options for the image

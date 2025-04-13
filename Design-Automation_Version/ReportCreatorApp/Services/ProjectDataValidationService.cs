@@ -21,8 +21,8 @@ namespace ipx.revit.reports.Services
                 // Check if file exists
                 if (!File.Exists(jsonPath))
                 {
-                    LoggingService.LogWarning($"Input JSON file not found at: {jsonPath}");
-                    return null;
+                    LoggingService.LogError($"Input JSON file not found at: {jsonPath}");
+                    throw new Exception($"Input JSON file not found at: {jsonPath}");
                 }
 
                 // Read and parse JSON content
@@ -35,7 +35,7 @@ namespace ipx.revit.reports.Services
                 if (projectData == null)
                 {
                     LoggingService.LogError("Failed to deserialize JSON to ProjectData");
-                    return null;
+                    throw new Exception("Failed to deserialize JSON to Project Data");
                 }
 
                 if (string.IsNullOrWhiteSpace(projectData.ProjectName))
@@ -77,7 +77,7 @@ namespace ipx.revit.reports.Services
             catch (Exception ex)
             {
                 LoggingService.LogError("Exception parsing JSON", ex);
-                return null;
+                throw ex;
             }
         }
     }

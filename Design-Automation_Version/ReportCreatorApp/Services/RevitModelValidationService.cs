@@ -6,8 +6,6 @@ using Autodesk.Revit.DB;
 
 using DesignAutomationFramework;
 
-using ipx.revit.reports.Models;
-
 namespace ipx.revit.reports.Services
 {
     public static class RevitModelValidationService
@@ -18,12 +16,12 @@ namespace ipx.revit.reports.Services
         public static (Application, Document) GetRevitAssets()
         {
             if (_rvtApp == null) throw new Exception("The Revit Application is null!");
-            if(_doc == null) throw new Exception("The Revit Document is null!");
+            if (_doc == null) throw new Exception("The Revit Document is null!");
             var result = (rvtApp: _rvtApp!, doc: _doc!);
             return result;
         }
 
-        public static void ValidateDesignAutomationEnvironment(DesignAutomationData data, ProjectData projectData)
+        public static void ValidateDesignAutomationEnvironment(DesignAutomationData data)
         {
             if (data == null)
             {
@@ -63,13 +61,51 @@ namespace ipx.revit.reports.Services
             }
 
             LoggingService.Log("Revit document opened successfully.");
-
-            if (projectData == null)
-            {
-                LoggingService.LogError("Failed to parse input JSON.");
-                throw new InvalidOperationException("Failed to parse input JSON.");
-            }
             LoggingService.Log("Design Automation Environment validated!");
+        }
+
+        public static string GetParamsJSONPath(DesignAutomationData data)
+        {
+            string revitFilePath = data.RevitDoc.PathName;
+
+            // Extract the directory of the Revit file
+            string revitFileDirectory = System.IO.Path.GetDirectoryName(revitFilePath);
+
+            // Build the path to params.json
+            string paramsJsonPath = System.IO.Path.Combine(revitFileDirectory, "params.json");
+
+            var pathExists = File.Exists(paramsJsonPath);
+
+            LoggingService.Log(pathExists ? $"Found the params data here: {paramsJsonPath}" : $"Could not find the params data here: {paramsJsonPath}");
+
+            return paramsJsonPath;
+        }
+
+        public static string[] GetAssetsPaths(DesignAutomationData data)
+        {
+            string revitFilePath = data.RevitDoc.PathName;
+
+            // Extract the directory of the Revit file
+            string revitFileDirectory = System.IO.Path.GetDirectoryName(revitFilePath);
+
+            // Build the path to params.json
+            string assetsPath = System.IO.Path.Combine(revitFileDirectory, "assets");
+
+            var assetsDirExists = Directory.Exists(assetsPath);
+
+            if (assetsDirExists)
+            {
+                LoggingService.Log($"The asset files are here: {assetsPath}");
+                string[] assetPaths = Directory.GetFiles(assetsPath);
+                return assetPaths;
+            }
+            else
+            {
+                LoggingService.LogError($"The assets are not here {assetsPath}");
+                throw new Exception(
+                    $"The assets are not here {assetsPath}"
+                );
+            }
         }
     }
 }

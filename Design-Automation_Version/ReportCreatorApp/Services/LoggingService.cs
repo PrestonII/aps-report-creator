@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Text;
 
@@ -7,10 +6,10 @@ namespace ipx.revit.reports.Services
 {
     public static class LoggingService
     {
-        private static readonly string _logFilePath;
-        private static readonly bool _isProduction; // the app is running in production
-        private static readonly bool _isDev; // the app is running on a local Revit machine
-        private static readonly bool _isDebug; // the app is being tested on the client/server side
+        private static string _logFilePath;
+        private static bool _isProduction; // the app is running in production
+        private static bool _isDev; // the app is running on a local Revit machine
+        private static bool _isDebug; // the app is being tested on the client/server side
         private static string _environment = "debug";
 
         public static void SetEnvironment(string environment = "debug")
@@ -18,7 +17,7 @@ namespace ipx.revit.reports.Services
             _environment = environment;
         }
 
-        static LoggingService()
+        private static void EvaluateEnvironment()
         {
             _isProduction = _environment?.ToLower() == "production";
             _isDev = _environment?.ToLower() == "development";
@@ -44,8 +43,9 @@ namespace ipx.revit.reports.Services
 
         public static void Log(string message, string level = "INFO")
         {
-            try 
-            { 
+            try
+            {
+                EvaluateEnvironment();
                 string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
                 string logMessage = $"[{timestamp}] [IPX:] [{level}] {message}";
 
@@ -65,7 +65,7 @@ namespace ipx.revit.reports.Services
                     }
                 }
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 Console.WriteLine(e.ToString());
                 Console.WriteLine("Could not log the last message due to an error!");
