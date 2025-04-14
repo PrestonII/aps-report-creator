@@ -11,6 +11,13 @@ namespace ipx.revit.reports.Services
         private static bool _isDev; // the app is running on a local Revit machine
         private static bool _isDebug; // the app is being tested on the client/server side
         private static string _environment = "debug";
+        private static readonly string _logStartTimeStamp;
+
+        static LoggingService()
+        {
+            _logStartTimeStamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+        }
+
 
         public static void SetEnvironment(string environment = "debug")
         {
@@ -23,20 +30,18 @@ namespace ipx.revit.reports.Services
             _isDev = _environment?.ToLower() == "development";
             _isDebug = _environment?.ToLower() == "debug";
 
-            string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-
             if (_isDev)
             {
                 string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-                _logFilePath = Path.Combine(desktopPath, $"RevitReportLog_{timestamp}.txt");
+                _logFilePath = Path.Combine(desktopPath, $"RevitReportLog_{_logStartTimeStamp}.txt");
             }
             else if (_isDebug)
             {
-                _logFilePath = $"RevitReportLog_{timestamp}.txt";
+                _logFilePath = $"RevitReportLog_{_logStartTimeStamp}.txt";
             }
             else if (_isProduction)
             {
-                _logFilePath = $"RevitReportLog_{timestamp}.txt";
+                _logFilePath = $"RevitReportLog_{_logStartTimeStamp}.txt";
             }
             else { _logFilePath = String.Empty; }
         }
