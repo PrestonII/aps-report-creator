@@ -41,7 +41,12 @@ namespace ipx.revit.reports
                 var (rvtApp, doc) = RevitModelValidationService.GetRevitAssets();
 
                 // Step 1: Link reference files
-                RevitModelValidationService.LinkReferenceFiles(doc);
+                int linkedCount = RevitModelValidationService.LinkReferenceFiles(doc);
+                LoggingService.Log($"Linked {linkedCount} reference files");
+
+                // Step 2: Create levels and views based on the linked files
+                int viewCount = RevitViewService.CreateLevelsAndViews(doc);
+                LoggingService.Log($"Created {viewCount} views");
 
                 // Get additional data
                 var assetPaths = RevitModelValidationService.GetAssetsPaths(e.DesignAutomationData);

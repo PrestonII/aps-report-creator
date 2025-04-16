@@ -108,23 +108,25 @@ namespace ipx.revit.reports.Services
             }
         }
 
-        public static void LinkReferenceFiles(Document doc)
+        public static int LinkReferenceFiles(Document doc)
         {
             try
             {
                 LoggingService.Log("Starting to link reference files...");
-                
+
                 // Get the host file path
                 string hostFilePath = doc.PathName;
-                
+
                 // Link all Revit files in the same directory
                 int linkedCount = RevitLinkService.LinkRevitFiles(doc, hostFilePath);
-                
+
                 LoggingService.Log($"Linked {linkedCount} reference files");
+                return linkedCount;
             }
             catch (Exception ex)
             {
                 LoggingService.LogError($"Error linking reference files: {ex.Message}");
+                throw ex;
             }
         }
     }
