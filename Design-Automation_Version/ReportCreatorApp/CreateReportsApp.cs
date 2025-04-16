@@ -33,13 +33,25 @@ namespace ipx.revit.reports
             try
             {
                 LoggingService.LogDebug("IPX LOGGER: DesignAutomationReadyEvent: Starting event handling");
+
+                // Step 1: Validate the Design Automation environment and get the host file
                 RevitModelValidationService.ValidateDesignAutomationEnvironment(e.DesignAutomationData);
+
+                // Get the host document
+                var (rvtApp, doc) = RevitModelValidationService.GetRevitAssets();
+
+                // Step 1: Link reference files
+                RevitModelValidationService.LinkReferenceFiles(doc);
+
+                // Get additional data
                 var assetPaths = RevitModelValidationService.GetAssetsPaths(e.DesignAutomationData);
                 var paramsJsonPath = RevitModelValidationService.GetParamsJSONPath(e.DesignAutomationData);
                 var projectData = ProjectDataValidationService.ValidateProjectData(paramsJsonPath);
 
                 LoggingService.SetEnvironment(projectData.Environment);
-                ExportToPdfs(e.DesignAutomationData, projectData, assetPaths);
+
+                // Continue with the rest of the process
+                //ExportToPdfs(e.DesignAutomationData, projectData, assetPaths);
                 e.Succeeded = _success ?? false;
             }
             catch (Exception ex)
@@ -55,10 +67,13 @@ namespace ipx.revit.reports
 
         public void ExportToPdfs(DesignAutomationData designAutomationData, ProjectData projectData, string[] assetPaths)
         {
-
             var (rvtApp, doc) = RevitModelValidationService.GetRevitAssets();
 
-            ImportImageAssets(doc, assetPaths);
+            // Import any additional assets if needed
+            if (assetPaths != null && assetPaths.Length > 0)
+            {
+                ImportImageAssets(doc, assetPaths);
+            }
 
             ExportToPdfsImp(rvtApp, doc, projectData);
         }
