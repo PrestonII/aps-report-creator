@@ -154,28 +154,22 @@ namespace ipx.revit.reports.Services
             try
             {
                 if (level == null || !level.IsValidObject)
-                    return null;
-
-                // First find a non-template floor plan view to use as reference
-                FilteredElementCollector collector = new FilteredElementCollector(doc);
-                ViewPlan referenceView = collector
-                    .OfClass(typeof(View))
-                    .Cast<View>()
-                    .FirstOrDefault(v => v is ViewPlan && !v.IsTemplate) as ViewPlan;
-
-                if (referenceView == null)
                 {
-                    LoggingService.LogError("Could not find a non-template floor plan view to use as reference");
+                    LoggingService.LogError("Invalid level provided to CreateFloorPlanView");
                     return null;
                 }
 
-                // Get the view type from the reference view
-                ViewFamilyType viewType = doc.GetElement(referenceView.GetTypeId()) as ViewFamilyType;
+                LoggingService.Log($"Creating floor plan view for level '{level.Name}' at scale {scale}");
+
+                // Get the floor plan view family type
+                ViewFamilyType viewType = GetFloorPlanViewFamilyType(doc);
                 if (viewType == null)
                 {
-                    LoggingService.LogError("Could not get view type from reference view");
+                    LoggingService.LogError("Could not get floor plan view family type");
                     return null;
                 }
+
+                LoggingService.Log($"Using view type: {viewType.Name}");
 
                 // Create the floor plan view within a transaction
                 ViewPlan view = null;
@@ -193,17 +187,22 @@ namespace ipx.revit.reports.Services
                             return null;
                         }
 
+                        LoggingService.Log($"Created floor plan view with ID: {view.Id.IntegerValue}");
+
                         // Set the scale
                         if (scale > 0)
                         {
                             view.Scale = scale;
+                            LoggingService.Log($"Set view scale to {scale}");
                         }
 
-                        // Set the view name according to the new format
-                        string scaleString = _scaleFactors.FirstOrDefault(x => x.Value == scale).Key;
-                        view.Name = $"{level.Name} - Scale {scaleString}";
+                        // Set the view name directly without checking for duplicates
+                        string viewName = $"{level.Name} - Scale {scale}";
+                        LoggingService.Log($"Setting view name to: {viewName}");
+                        view.Name = viewName;
                         
                         tx.Commit();
+                        LoggingService.Log($"Successfully created view: {view.Name}");
                     }
                     catch (Exception ex)
                     {
@@ -231,6 +230,8 @@ namespace ipx.revit.reports.Services
         private static Dictionary<Level, List<ViewPlan>> CreateViewsForLevels(Document doc, List<Level> levels)
         {
             Dictionary<Level, List<ViewPlan>> viewsByLevel = new Dictionary<Level, List<ViewPlan>>();
+            
+            LoggingService.Log($"Starting to create views for {levels.Count} levels");
 
             foreach (Level level in levels)
             {
@@ -240,24 +241,38 @@ namespace ipx.revit.reports.Services
                     continue;
                 }
 
+                LoggingService.Log($"Processing level: {level.Name} (ID: {level.Id.IntegerValue})");
                 List<ViewPlan> levelViews = new List<ViewPlan>();
 
                 // Create views at different scales
-                foreach (int scale in _scaleFactors.Values)
+                foreach (var scaleFactor in _scaleFactors)
                 {
-                    ViewPlan view = CreateFloorPlanView(doc, level, scale);
+                    LoggingService.Log($"Creating view for level {level.Name} at scale {scaleFactor.Key} ({scaleFactor.Value})");
+                    
+                    ViewPlan view = CreateFloorPlanView(doc, level, scaleFactor.Value);
                     if (view != null && view.IsValidObject)
                     {
+                        LoggingService.Log($"Successfully created view: {view.Name} for level {level.Name}");
                         levelViews.Add(view);
+                    }
+                    else
+                    {
+                        LoggingService.LogWarning($"Failed to create view for level {level.Name} at scale {scaleFactor.Key}");
                     }
                 }
 
                 if (levelViews.Count > 0)
                 {
+                    LoggingService.Log($"Added {levelViews.Count} views for level {level.Name}");
                     viewsByLevel[level] = levelViews;
+                }
+                else
+                {
+                    LoggingService.LogWarning($"No views were created for level {level.Name}");
                 }
             }
 
+            LoggingService.Log($"Created a total of {viewsByLevel.Values.Sum(v => v.Count)} views across {viewsByLevel.Count} levels");
             return viewsByLevel;
         }
 
@@ -350,14 +365,17 @@ namespace ipx.revit.reports.Services
         }
 
         /// <summary>
-        /// Checks if a level exists in the document
+        /// Checks if a level with the specified name exists
         /// </summary>
         /// <param name="doc">The Revit document</param>
-        /// <param name="levelName">The level name</param>
+        /// <param name="levelName">The name of the level</param>
         /// <returns>True if the level exists, false otherwise</returns>
         private static bool LevelExists(Document doc, string levelName)
         {
-            return RevitLevelService.LevelExists(doc, levelName);
+            FilteredElementCollector collector = new FilteredElementCollector(doc);
+            IList<Element> levels = collector.OfClass(typeof(Level)).ToElements();
+            
+            return levels.Any(e => e.Name == levelName);
         }
 
         /// <summary>
@@ -370,8 +388,55 @@ namespace ipx.revit.reports.Services
         {
             FilteredElementCollector collector = new FilteredElementCollector(doc);
             IList<Element> views = collector.OfClass(typeof(View)).ToElements();
-
+            
             return views.Any(e => e.Name == viewName);
+        }
+
+        /// <summary>
+        /// Checks if a view with the specified name and scale already exists
+        /// </summary>
+        /// <param name="doc">The Revit document</param>
+        /// <param name="levelName">The level name</param>
+        /// <param name="scale">The scale value</param>
+        /// <returns>True if the view exists, false otherwise</returns>
+        private static bool ViewExistsForLevelAndScale(Document doc, string levelName, int scale)
+        {
+            string viewName = $"{levelName} - Scale {scale}";
+            
+            return ViewExists(doc, viewName);
+        }
+
+        /// <summary>
+        /// Gets the floor plan view family type
+        /// </summary>
+        /// <param name="doc">The Revit document</param>
+        /// <returns>The floor plan view family type</returns>
+        private static ViewFamilyType GetFloorPlanViewFamilyType(Document doc)
+        {
+            // Get all view family types
+            FilteredElementCollector collector = new FilteredElementCollector(doc);
+            IList<Element> viewFamilyTypes = collector.OfClass(typeof(ViewFamilyType)).ToElements();
+            
+            // Find the Floor Plan view family type
+            ViewFamilyType floorPlanType = null;
+            foreach (Element element in viewFamilyTypes)
+            {
+                ViewFamilyType viewType = element as ViewFamilyType;
+                if (viewType != null && viewType.ViewFamily == ViewFamily.FloorPlan)
+                {
+                    floorPlanType = viewType;
+                    LoggingService.Log($"Found Floor Plan view family type: {floorPlanType.Name}");
+                    break;
+                }
+            }
+            
+            if (floorPlanType == null)
+            {
+                LoggingService.LogError("Could not find Floor Plan view family type");
+                return null;
+            }
+            
+            return floorPlanType;
         }
     }
 }
