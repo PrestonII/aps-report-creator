@@ -102,12 +102,11 @@ namespace ipx.revit.reports.Services
             {
                 try
                 {
-                    // In Revit 2023, we need to use ElementTransformUtils differently
-                    // Get height and width parameters directly
-                    Parameter heightParam = image.get_Parameter(BuiltInParameter.RASTER_SHEETWIDTH);
-                    Parameter widthParam = image.get_Parameter(BuiltInParameter.RASTER_SHEETHEIGHT);
+                    // Get the image dimensions from the image instance
+                    Parameter widthParam = image.get_Parameter(BuiltInParameter.RASTER_SHEETWIDTH);
+                    Parameter heightParam = image.get_Parameter(BuiltInParameter.RASTER_SHEETHEIGHT);
 
-                    if (heightParam != null && widthParam != null)
+                    if (widthParam != null && heightParam != null)
                     {
                         // Get current values
                         double currentWidth = widthParam.AsDouble();
@@ -117,7 +116,7 @@ namespace ipx.revit.reports.Services
                         widthParam.Set(currentWidth * scale);
                         heightParam.Set(currentHeight * scale);
 
-                        LoggingService.LogDebug($"Applied scaling of {scale} using dimension parameters");
+                        LoggingService.LogDebug($"Applied scaling of {scale} to image dimensions");
                     }
                     else
                     {

@@ -45,11 +45,11 @@ namespace ipx.revit.reports
                 LoggingService.Log($"Linked {linkedCount} reference files");
 
                 // Step 2: Create levels and views based on the linked files
-                int viewCount = RevitViewService.CreateLevelsAndViews(doc);
-                LoggingService.Log($"Created {viewCount} views");
+                var (views, sheets) = RevitViewService.CreateLevelsAndViews(doc);
+                LoggingService.Log($"Created {views.Count} views");
 
                 // Place views on sheets
-                int sheetCount = RevitSheetService.PlaceViewsOnSheets(doc);
+                int sheetCount = RevitSheetService.PlaceViewsOnSheets(doc, views, sheets);
                 LoggingService.Log($"Created {sheetCount} sheets");
 
                 // Get additional data

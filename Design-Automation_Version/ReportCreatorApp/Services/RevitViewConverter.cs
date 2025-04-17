@@ -14,56 +14,88 @@ namespace ipx.revit.reports.Services
     public static class RevitViewConverter
     {
         /// <summary>
+        /// Validates if a view can be converted and placed on a sheet in Revit 2023
+        /// </summary>
+        private static bool IsValidViewForConversion(View view)
+        {
+            return view != null &&
+                   view.IsValidObject &&
+                   !view.IsTemplate &&
+                   (view is ViewPlan || view is ViewSection || view is ViewDrafting);
+        }
+
+        /// <summary>
+        /// Validates if a view can be placed on a sheet
+        /// </summary>
+        /// <param name="view"></param>
+        /// <returns></returns>
+        private static bool CanBePlacedOnSheet(View view)
+        {
+            return view != null &&
+                   view.IsValidObject &&
+                   !view.IsTemplate &&
+                   (view is ViewPlan || view is ViewSection || view is ViewDrafting);
+        }
+
+        /// <summary>
         /// Converts a Revit ViewPlan to an IPXView
         /// </summary>
         /// <param name="view">The Revit ViewPlan</param>
         /// <returns>An IPXView</returns>
         public static IPXView ConvertToIPXView(ViewPlan view)
         {
-            if (view == null)
+            if (!IsValidViewForConversion(view))
                 return null;
 
-            // Extract the level name from the view name
-            string levelName = ViewService.ExtractLevelNameFromViewName(view.Name);
-            
-            // Get the view's dimensions
-            double viewWidth = 0;
-            double viewHeight = 0;
-            
-            // For floor plan views, we need to use the crop box
-            if (view.CropBoxActive)
+            try
             {
-                // Get the crop box
-                BoundingBoxXYZ cropBox = view.CropBox;
-                
-                // Calculate the dimensions in feet
-                viewWidth = (cropBox.Max.X - cropBox.Min.X);
-                viewHeight = (cropBox.Max.Y - cropBox.Min.Y);
+                // Extract the level name from the view name
+                string levelName = ViewService.ExtractLevelNameFromViewName(view.Name);
+
+                // Get the view's dimensions
+                double viewWidth = 0;
+                double viewHeight = 0;
+
+                // For floor plan views, we need to use the crop box
+                if (view.CropBoxActive)
+                {
+                    // Get the crop box
+                    BoundingBoxXYZ cropBox = view.CropBox;
+
+                    // Calculate the dimensions in feet
+                    viewWidth = (cropBox.Max.X - cropBox.Min.X);
+                    viewHeight = (cropBox.Max.Y - cropBox.Min.Y);
+                }
+                else
+                {
+                    // If no crop box, use the outline
+                    BoundingBoxUV outline = view.Outline;
+                    viewWidth = (outline.Max.U - outline.Min.U);
+                    viewHeight = (outline.Max.V - outline.Min.V);
+                }
+
+                // Convert to paper space dimensions (divide by scale)
+                viewWidth = viewWidth / view.Scale;
+                viewHeight = viewHeight / view.Scale;
+
+                // Create the IPXView
+                return new IPXView(
+                    view.Id.IntegerValue.ToString(),
+                    view.Name,
+                    view.ViewType.ToString(),
+                    view.Scale,
+                    levelName,
+                    viewWidth,
+                    viewHeight,
+                    view.Id.IntegerValue.ToString(),
+                    true // Floor plans can be placed on sheets
+                );
             }
-            else
+            catch (Exception ex)
             {
-                // If no crop box, use the outline
-                BoundingBoxUV outline = view.Outline;
-                viewWidth = (outline.Max.U - outline.Min.U);
-                viewHeight = (outline.Max.V - outline.Min.V);
+                LoggingService.LogError($"Error converting ViewPlan to IPXView: {ex.Message}");
+                return null;
             }
-            
-            // Convert to paper space dimensions (divide by scale)
-            viewWidth = viewWidth / view.Scale;
-            viewHeight = viewHeight / view.Scale;
-            
-            // Create the IPXView
-            return new IPXView(
-                view.Id.IntegerValue.ToString(),
-                view.Name,
-                view.ViewType.ToString(),
-                view.Scale,
-                levelName,
-                viewWidth,
-                viewHeight,
-                view.Id.IntegerValue.ToString(),
-                true // Floor plans can be placed on sheets
-            );
         }
 
         /// <summary>
@@ -76,7 +108,10 @@ namespace ipx.revit.reports.Services
             if (views == null)
                 return new List<IPXView>();
 
-            return views.Select(v => ConvertToIPXView(v)).ToList();
+            return views.Where(v => IsValidViewForConversion(v))
+                       .Select(v => ConvertToIPXView(v))
+                       .Where(v => v != null)
+                       .ToList();
         }
 
         /// <summary>
@@ -86,24 +121,32 @@ namespace ipx.revit.reports.Services
         /// <returns>An IPXView</returns>
         public static IPXView ConvertToIPXView(View view)
         {
-            if (view == null)
+            if (!IsValidViewForConversion(view))
                 return null;
 
-            // Check if the view can be placed on a sheet
-            bool canBePlacedOnSheet = view.ViewType.ToString().Contains("Drafting");
-            
-            // Create the IPXView
-            return new IPXView(
-                view.Id.IntegerValue.ToString(),
-                view.Name,
-                view.ViewType.ToString(),
-                view.Scale,
-                string.Empty, // No level name for non-floor plan views
-                0, // Width not applicable for non-floor plan views
-                0, // Height not applicable for non-floor plan views
-                view.Id.IntegerValue.ToString(),
-                canBePlacedOnSheet
-            );
+            try
+            {
+                // Check if the view can be placed on a sheet
+                bool canBePlacedOnSheet = CanBePlacedOnSheet(view);
+
+                // Create the IPXView
+                return new IPXView(
+                    view.Id.IntegerValue.ToString(),
+                    view.Name,
+                    view.ViewType.ToString(),
+                    view.Scale,
+                    string.Empty, // No level name for non-floor plan views
+                    0, // Width not applicable for non-floor plan views
+                    0, // Height not applicable for non-floor plan views
+                    view.Id.IntegerValue.ToString(),
+                    canBePlacedOnSheet
+                );
+            }
+            catch (Exception ex)
+            {
+                LoggingService.LogError($"Error converting View to IPXView: {ex.Message}");
+                return null;
+            }
         }
 
         /// <summary>
@@ -116,12 +159,19 @@ namespace ipx.revit.reports.Services
             if (view == null || string.IsNullOrEmpty(view.RevitElementId))
                 return ElementId.InvalidElementId;
 
-            if (int.TryParse(view.RevitElementId, out int id))
+            try
             {
-                return new ElementId(id);
+                if (int.TryParse(view.RevitElementId, out int id))
+                {
+                    return new ElementId(id);
+                }
+            }
+            catch (Exception ex)
+            {
+                LoggingService.LogError($"Error getting ElementId from IPXView: {ex.Message}");
             }
 
             return ElementId.InvalidElementId;
         }
     }
-} 
+}

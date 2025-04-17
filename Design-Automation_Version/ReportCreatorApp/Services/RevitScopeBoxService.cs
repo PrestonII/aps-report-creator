@@ -146,103 +146,134 @@ namespace ipx.revit.reports.Services
         }
 
         /// <summary>
-        /// Gets the bounding box of a level
+        /// Gets the bounding box for a level by finding the extents of all model elements at that level
         /// </summary>
         /// <param name="doc">The Revit document</param>
         /// <param name="level">The level to get the bounding box for</param>
-        /// <returns>The bounding box of the level</returns>
-        private static BoundingBoxXYZ GetLevelBoundingBox(Document doc, Level level)
+        /// <returns>The bounding box for the level</returns>
+        public static BoundingBoxXYZ GetLevelBoundingBox(Document doc, Level level)
         {
             try
             {
-                // Get all linked documents
-                FilteredElementCollector collectorLinks = new FilteredElementCollector(doc);
-                IList<Element> revitLinks = collectorLinks.OfClass(typeof(RevitLinkInstance)).ToElements();
-
-                if (revitLinks.Count == 0)
+                LoggingService.Log($"Getting bounding box for level {level.Name}");
+                
+                // Create a filter to find all model elements at the specified level
+                // Only include Walls, Roofs, and Floors as requested
+                ElementClassFilter wallFilter = new ElementClassFilter(typeof(Wall));
+                ElementClassFilter roofFilter = new ElementClassFilter(typeof(RoofBase));
+                ElementClassFilter floorFilter = new ElementClassFilter(typeof(Floor));
+                
+                LogicalOrFilter orFilter = new LogicalOrFilter(wallFilter, roofFilter);
+                orFilter = new LogicalOrFilter(orFilter, floorFilter);
+                
+                // Create a filter to find elements at the specified level
+                ElementLevelFilter levelFilter = new ElementLevelFilter(level.Id);
+                
+                // Combine the filters
+                LogicalAndFilter andFilter = new LogicalAndFilter(orFilter, levelFilter);
+                
+                // Apply the filter to find elements in the main document
+                FilteredElementCollector collector = new FilteredElementCollector(doc);
+                IList<Element> elements = collector.WherePasses(andFilter).ToElements();
+                
+                // Get elements from linked files
+                IList<RevitLinkInstance> linkInstances = new FilteredElementCollector(doc)
+                    .OfClass(typeof(RevitLinkInstance))
+                    .Cast<RevitLinkInstance>()
+                    .ToList();
+                
+                foreach (RevitLinkInstance linkInstance in linkInstances)
                 {
-                    LoggingService.LogWarning("No linked Revit files found");
-                    return null;
-                }
-
-                // Create a bounding box that encompasses all elements
-                BoundingBoxXYZ boundingBox = new BoundingBoxXYZ();
-                bool first = true;
-
-                foreach (Element linkElement in revitLinks)
-                {
-                    RevitLinkInstance linkInstance = linkElement as RevitLinkInstance;
                     Document linkDoc = linkInstance.GetLinkDocument();
-
                     if (linkDoc != null)
                     {
-                        // Get all model elements in the linked document
-                        FilteredElementCollector collector = new FilteredElementCollector(linkDoc);
-                        IList<Element> elements = collector
-                            .OfClass(typeof(Element))
-                            .WhereElementIsNotElementType()
-                            .ToElements();
-
-                        // Filter elements at the level
-                        var levelElements = elements.Where(e => 
+                        // Find the corresponding level in the linked document
+                        Level linkLevel = FindCorrespondingLevel(linkDoc, level);
+                        if (linkLevel != null)
                         {
-                            // Check if the element has a level parameter
-                            Parameter levelParam = e.get_Parameter(BuiltInParameter.INSTANCE_FREE_HOST_PARAM);
-                            if (levelParam != null && levelParam.AsElementId() == level.Id)
-                                return true;
-
-                            // Check if the element is hosted by the level
-                            if (e is FamilyInstance fi && fi.Host != null && fi.Host.Id == level.Id)
-                                return true;
-
-                            return false;
-                        }).ToList();
-
-                        foreach (Element element in levelElements)
-                        {
-                            BoundingBoxXYZ elementBox = element.get_BoundingBox(null);
-                            if (elementBox != null)
+                            // Create the same filters for the linked document
+                            ElementClassFilter linkWallFilter = new ElementClassFilter(typeof(Wall));
+                            ElementClassFilter linkRoofFilter = new ElementClassFilter(typeof(RoofBase));
+                            ElementClassFilter linkFloorFilter = new ElementClassFilter(typeof(Floor));
+                            
+                            LogicalOrFilter linkOrFilter = new LogicalOrFilter(linkWallFilter, linkRoofFilter);
+                            linkOrFilter = new LogicalOrFilter(linkOrFilter, linkFloorFilter);
+                            
+                            ElementLevelFilter linkLevelFilter = new ElementLevelFilter(linkLevel.Id);
+                            LogicalAndFilter linkAndFilter = new LogicalAndFilter(linkOrFilter, linkLevelFilter);
+                            
+                            // Get elements from the linked document
+                            FilteredElementCollector linkCollector = new FilteredElementCollector(linkDoc);
+                            IList<Element> linkElements = linkCollector.WherePasses(linkAndFilter).ToElements();
+                            
+                            // Transform the elements to the main document's coordinate system
+                            Transform transform = linkInstance.GetTotalTransform();
+                            foreach (Element linkElement in linkElements)
                             {
-                                // Transform the bounding box from link space to host space
-                                Transform transform = linkInstance.GetTotalTransform();
-                                XYZ min = transform.OfPoint(elementBox.Min);
-                                XYZ max = transform.OfPoint(elementBox.Max);
-
-                                if (first)
+                                BoundingBoxXYZ linkBox = linkElement.get_BoundingBox(null);
+                                if (linkBox != null)
                                 {
-                                    boundingBox.Min = min;
-                                    boundingBox.Max = max;
-                                    first = false;
-                                }
-                                else
-                                {
-                                    boundingBox.Min = new XYZ(
-                                        Math.Min(boundingBox.Min.X, min.X),
-                                        Math.Min(boundingBox.Min.Y, min.Y),
-                                        Math.Min(boundingBox.Min.Z, min.Z)
-                                    );
-                                    boundingBox.Max = new XYZ(
-                                        Math.Max(boundingBox.Max.X, max.X),
-                                        Math.Max(boundingBox.Max.Y, max.Y),
-                                        Math.Max(boundingBox.Max.Z, max.Z)
-                                    );
+                                    // Transform the bounding box corners
+                                    XYZ min = transform.OfPoint(linkBox.Min);
+                                    XYZ max = transform.OfPoint(linkBox.Max);
+                                    
+                                    // Create a new bounding box in the main document's coordinate system
+                                    BoundingBoxXYZ transformedBox = new BoundingBoxXYZ();
+                                    transformedBox.Min = min;
+                                    transformedBox.Max = max;
+                                    
+                                    // Add the transformed box to our collection
+                                    elements.Add(linkElement);
                                 }
                             }
                         }
                     }
                 }
-
-                if (first)
+                
+                if (elements.Count == 0)
                 {
-                    LoggingService.LogWarning($"No elements found at level {level.Name} in any linked documents");
+                    LoggingService.LogWarning($"No model elements found at level {level.Name}");
                     return null;
                 }
-
-                // Add some padding to the bounding box
-                XYZ padding = new XYZ(10, 10, 10);
-                boundingBox.Min = boundingBox.Min.Subtract(padding);
-                boundingBox.Max = boundingBox.Max.Add(padding);
-
+                
+                // Create a bounding box that encompasses all elements
+                BoundingBoxXYZ boundingBox = new BoundingBoxXYZ();
+                boundingBox.Min = new XYZ(double.MaxValue, double.MaxValue, double.MaxValue);
+                boundingBox.Max = new XYZ(double.MinValue, double.MinValue, double.MinValue);
+                
+                foreach (Element element in elements)
+                {
+                    BoundingBoxXYZ elementBox = element.get_BoundingBox(null);
+                    if (elementBox != null)
+                    {
+                        boundingBox.Min = new XYZ(
+                            Math.Min(boundingBox.Min.X, elementBox.Min.X),
+                            Math.Min(boundingBox.Min.Y, elementBox.Min.Y),
+                            Math.Min(boundingBox.Min.Z, elementBox.Min.Z)
+                        );
+                        
+                        boundingBox.Max = new XYZ(
+                            Math.Max(boundingBox.Max.X, elementBox.Max.X),
+                            Math.Max(boundingBox.Max.Y, elementBox.Max.Y),
+                            Math.Max(boundingBox.Max.Z, elementBox.Max.Z)
+                        );
+                    }
+                }
+                
+                // Add a buffer to the bounding box
+                double buffer = 10.0; // 10 feet buffer
+                boundingBox.Min = new XYZ(
+                    boundingBox.Min.X - buffer,
+                    boundingBox.Min.Y - buffer,
+                    boundingBox.Min.Z
+                );
+                
+                boundingBox.Max = new XYZ(
+                    boundingBox.Max.X + buffer,
+                    boundingBox.Max.Y + buffer,
+                    boundingBox.Max.Z
+                );
+                
                 return boundingBox;
             }
             catch (Exception ex)
@@ -250,6 +281,31 @@ namespace ipx.revit.reports.Services
                 LoggingService.LogError($"Error getting level bounding box: {ex.Message}");
                 return null;
             }
+        }
+        
+        /// <summary>
+        /// Finds the corresponding level in a linked document
+        /// </summary>
+        /// <param name="linkDoc">The linked document</param>
+        /// <param name="mainLevel">The level in the main document</param>
+        /// <returns>The corresponding level in the linked document, or null if not found</returns>
+        private static Level FindCorrespondingLevel(Document linkDoc, Level mainLevel)
+        {
+            // First try to find a level with the same name
+            FilteredElementCollector collector = new FilteredElementCollector(linkDoc);
+            IList<Element> levels = collector.OfClass(typeof(Level)).ToElements();
+            
+            Level matchingLevel = levels
+                .Cast<Level>()
+                .FirstOrDefault(l => l.Name == mainLevel.Name);
+            
+            if (matchingLevel != null)
+                return matchingLevel;
+            
+            // If no exact match, try to find a level at the same elevation
+            return levels
+                .Cast<Level>()
+                .FirstOrDefault(l => Math.Abs(l.Elevation - mainLevel.Elevation) < 0.001);
         }
     }
 } 

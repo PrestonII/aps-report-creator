@@ -100,8 +100,8 @@ namespace ipx.revit.reports.Services
             {
                 string scaleString = parts[1];
                 
-                // Try to parse the scale value
-                if (int.TryParse(scaleString, out int scale))
+                // Try to parse the scale value from the scale string
+                if (RevitViewService._scaleFactors.TryGetValue(scaleString, out int scale))
                 {
                     return scale;
                 }
