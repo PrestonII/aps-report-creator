@@ -48,6 +48,10 @@ namespace ipx.revit.reports
                 int viewCount = RevitViewService.CreateLevelsAndViews(doc);
                 LoggingService.Log($"Created {viewCount} views");
 
+                // Place views on sheets
+                int sheetCount = RevitSheetService.PlaceViewsOnSheets(doc);
+                LoggingService.Log($"Created {sheetCount} sheets");
+
                 // Get additional data
                 var assetPaths = RevitModelValidationService.GetAssetsPaths(e.DesignAutomationData);
                 var paramsJsonPath = RevitModelValidationService.GetParamsJSONPath(e.DesignAutomationData);
