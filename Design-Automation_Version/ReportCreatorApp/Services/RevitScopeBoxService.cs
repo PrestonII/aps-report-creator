@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 
 using Autodesk.Revit.DB;
+
 using ipx.revit.reports.Utilities;
 
 namespace ipx.revit.reports.Services
@@ -255,74 +256,13 @@ namespace ipx.revit.reports.Services
             {
                 LoggingService.Log($"Getting bounding box for level {level.Name} (ID: {level.Id.IntegerValue}, Elevation: {level.Elevation})");
 
-                // Create a filter to find all model elements at the specified level
-                LogicalAndFilter andFilter = ElementFilterUtility.CreateModelElementsAtLevelFilter(level.Id);
+                // Determine the upper constraint for this level
+                double upperConstraint = GetLevelUpperConstraint(doc, level);
+                LoggingService.Log($"Level {level.Name} has upper constraint at elevation {upperConstraint}");
 
-                // Apply the filter to find elements in the main document
-                FilteredElementCollector collector = new FilteredElementCollector(doc);
-                IList<Element> elements = collector.WherePasses(andFilter).ToElements();
-
-                LoggingService.Log($"Found {elements.Count} elements in main document at level {level.Name}");
-
-                // Get elements from linked files
-                IList<RevitLinkInstance> linkInstances = new FilteredElementCollector(doc)
-                    .OfClass(typeof(RevitLinkInstance))
-                    .Cast<RevitLinkInstance>()
-                    .ToList();
-
-                LoggingService.Log($"Found {linkInstances.Count} linked files to check for elements");
-
-                foreach (RevitLinkInstance linkInstance in linkInstances)
-                {
-                    Document linkDoc = linkInstance.GetLinkDocument();
-                    if (linkDoc != null)
-                    {
-                        LoggingService.Log($"Processing linked document: {linkDoc.Title}");
-
-                        // Find the corresponding level in the linked document using RevitLevelService
-                        Level linkLevel = RevitLevelService.FindCorrespondingLevel(linkDoc, level);
-                        if (linkLevel != null)
-                        {
-                            LoggingService.Log($"Found corresponding level {linkLevel.Name} in linked document");
-
-                            // Create the same filters for the linked document
-                            LogicalAndFilter linkAndFilter = ElementFilterUtility.CreateModelElementsAtLevelFilter(linkLevel.Id);
-
-                            // Get elements from the linked document
-                            FilteredElementCollector linkCollector = new FilteredElementCollector(linkDoc);
-                            IList<Element> linkElements = linkCollector.WherePasses(linkAndFilter).ToElements();
-
-                            LoggingService.Log($"Found {linkElements.Count} elements in linked document at level {linkLevel.Name}");
-
-                            // Transform the elements to the main document's coordinate system
-                            Transform transform = linkInstance.GetTotalTransform();
-                            foreach (Element linkElement in linkElements)
-                            {
-                                BoundingBoxXYZ linkBox = linkElement.get_BoundingBox(null);
-                                if (linkBox != null)
-                                {
-                                    // Transform the bounding box corners
-                                    XYZ min = transform.OfPoint(linkBox.Min);
-                                    XYZ max = transform.OfPoint(linkBox.Max);
-
-                                    // Create a new bounding box in the main document's coordinate system
-                                    BoundingBoxXYZ transformedBox = new BoundingBoxXYZ();
-                                    transformedBox.Min = min;
-                                    transformedBox.Max = max;
-
-                                    // Add the transformed box to our collection
-                                    elements.Add(linkElement);
-
-                                    LoggingService.Log($"Added transformed element {linkElement.Id.IntegerValue} from linked document");
-                                }
-                            }
-                        }
-                        else
-                        {
-                            LoggingService.LogWarning($"Could not find corresponding level in linked document {linkDoc.Title}");
-                        }
-                    }
-                }
+                // Get all elements that intersect with the level's height range (including linked files)
+                List<Element> elements = ElementFilterUtility.GetElementsIntersectingLevelHeight(doc, level, upperConstraint);
+                LoggingService.Log($"Found {elements.Count} elements that intersect with level {level.Name}");
 
                 if (elements.Count == 0)
                 {
@@ -332,8 +272,8 @@ namespace ipx.revit.reports.Services
 
                 // Create a bounding box that encompasses all elements
                 BoundingBoxXYZ boundingBox = new BoundingBoxXYZ();
-                boundingBox.Min = new XYZ(double.MaxValue, double.MaxValue, double.MaxValue);
-                boundingBox.Max = new XYZ(double.MinValue, double.MinValue, double.MinValue);
+                boundingBox.Min = new XYZ(double.MaxValue, double.MaxValue, level.Elevation);
+                boundingBox.Max = new XYZ(double.MinValue, double.MinValue, upperConstraint);
 
                 foreach (Element element in elements)
                 {
@@ -346,13 +286,13 @@ namespace ipx.revit.reports.Services
                         boundingBox.Min = new XYZ(
                             Math.Min(boundingBox.Min.X, elementBox.Min.X),
                             Math.Min(boundingBox.Min.Y, elementBox.Min.Y),
-                            Math.Min(boundingBox.Min.Z, elementBox.Min.Z)
+                            level.Elevation // Keep the Z at the level elevation
                         );
 
                         boundingBox.Max = new XYZ(
                             Math.Max(boundingBox.Max.X, elementBox.Max.X),
                             Math.Max(boundingBox.Max.Y, elementBox.Max.Y),
-                            Math.Max(boundingBox.Max.Z, elementBox.Max.Z)
+                            upperConstraint // Keep the Z at the upper constraint
                         );
                     }
                 }
@@ -386,6 +326,53 @@ namespace ipx.revit.reports.Services
         }
 
         /// <summary>
+        /// Gets the upper constraint (elevation) for a level
+        /// </summary>
+        /// <param name="doc">The Revit document</param>
+        /// <param name="level">The level to get the upper constraint for</param>
+        /// <returns>The upper constraint elevation</returns>
+        private static double GetLevelUpperConstraint(Document doc, Level level)
+        {
+            try
+            {
+                // Get all levels in the document
+                FilteredElementCollector collector = new FilteredElementCollector(doc);
+                IList<Element> levels = collector.OfClass(typeof(Level)).ToElements();
+
+                // Sort levels by elevation
+                List<Level> sortedLevels = levels
+                    .Cast<Level>()
+                    .OrderBy(l => l.Elevation)
+                    .ToList();
+
+                // Find the index of the current level
+                int currentIndex = sortedLevels.FindIndex(l => l.Id == level.Id);
+
+                if (currentIndex >= 0 && currentIndex < sortedLevels.Count - 1)
+                {
+                    // If there's a level above, use its elevation as the upper constraint
+                    Level nextLevel = sortedLevels[currentIndex + 1];
+                    LoggingService.Log($"Level {level.Name} has next level {nextLevel.Name} at elevation {nextLevel.Elevation}");
+                    return nextLevel.Elevation;
+                }
+                else
+                {
+                    // If this is the highest level, add 1 foot to its elevation
+                    double upperConstraint = level.Elevation + 1.0;
+                    LoggingService.Log($"Level {level.Name} is the highest level, using elevation + 1 foot: {upperConstraint}");
+                    return upperConstraint;
+                }
+            }
+            catch (Exception ex)
+            {
+                LoggingService.LogError($"Error getting level upper constraint: {ex.Message}");
+                LoggingService.LogError($"Stack trace: {ex.StackTrace}");
+                // Default to 1 foot above the level if there's an error
+                return level.Elevation + 1.0;
+            }
+        }
+
+        /// <summary>
         /// Finds the corresponding level in a linked document
         /// </summary>
         /// <param name="linkDoc">The linked document</param>
@@ -396,10 +383,10 @@ namespace ipx.revit.reports.Services
             try
             {
                 LoggingService.Log($"Finding corresponding level for {mainLevel.Name} in linked document {linkDoc.Title}");
-                
+
                 // Use the method from RevitLevelService
                 Level correspondingLevel = RevitLevelService.FindCorrespondingLevel(linkDoc, mainLevel);
-                
+
                 if (correspondingLevel != null)
                 {
                     LoggingService.Log($"Found corresponding level: {correspondingLevel.Name} (ID: {correspondingLevel.Id.IntegerValue})");
@@ -408,7 +395,7 @@ namespace ipx.revit.reports.Services
                 {
                     LoggingService.LogWarning($"No corresponding level found for {mainLevel.Name} in linked document {linkDoc.Title}");
                 }
-                
+
                 return correspondingLevel;
             }
             catch (Exception ex)
