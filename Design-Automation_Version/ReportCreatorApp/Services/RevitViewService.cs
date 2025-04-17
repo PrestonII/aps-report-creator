@@ -72,10 +72,10 @@ namespace ipx.revit.reports.Services
                 LoggingService.Log($"Created {viewCount} views");
 
                 // STEP 4: Create scope boxes for each level using the smallest scale view
-                Dictionary<Level, Element> scopeBoxesByLevel = CreateScopeBoxesForLevels(doc, viewsByLevel);
+                Dictionary<Level, CurveLoop> curveLoopsByLevel = CreateScopeBoxesForLevels(doc, viewsByLevel);
 
                 // STEP 5: Apply scope boxes to all views for each level
-                ApplyScopeBoxesToViews(doc, viewsByLevel, scopeBoxesByLevel);
+                ApplyScopeBoxesToViews(doc, viewsByLevel, curveLoopsByLevel);
 
                 // STEP 6: Create sheets for each level
                 List<ViewSheet> createdSheets = CreateSheetsForLevels(doc, createdLevels);
@@ -229,51 +229,78 @@ namespace ipx.revit.reports.Services
         /// <returns>A dictionary of levels and their views</returns>
         private static Dictionary<Level, List<ViewPlan>> CreateViewsForLevels(Document doc, List<Level> levels)
         {
-            Dictionary<Level, List<ViewPlan>> viewsByLevel = new Dictionary<Level, List<ViewPlan>>();
-            
-            LoggingService.Log($"Starting to create views for {levels.Count} levels");
-
-            foreach (Level level in levels)
+            try
             {
-                if (level == null || !level.IsValidObject)
-                {
-                    LoggingService.LogWarning("Invalid level encountered, skipping");
-                    continue;
-                }
+                Dictionary<Level, List<ViewPlan>> viewsByLevel = new Dictionary<Level, List<ViewPlan>>();
+                
+                LoggingService.Log($"Starting to create views for {levels.Count} levels");
 
-                LoggingService.Log($"Processing level: {level.Name} (ID: {level.Id.IntegerValue})");
-                List<ViewPlan> levelViews = new List<ViewPlan>();
-
-                // Create views at different scales
-                foreach (var scaleFactor in _scaleFactors)
+                foreach (Level level in levels)
                 {
-                    LoggingService.Log($"Creating view for level {level.Name} at scale {scaleFactor.Key} ({scaleFactor.Value})");
-                    
-                    ViewPlan view = CreateFloorPlanView(doc, level, scaleFactor.Value);
-                    if (view != null && view.IsValidObject)
+                    try
                     {
-                        LoggingService.Log($"Successfully created view: {view.Name} for level {level.Name}");
-                        levelViews.Add(view);
+                        if (level == null || !level.IsValidObject)
+                        {
+                            LoggingService.LogWarning("Invalid level encountered, skipping");
+                            continue;
+                        }
+
+                        LoggingService.Log($"Processing level: {level.Name} (ID: {level.Id.IntegerValue})");
+                        List<ViewPlan> levelViews = new List<ViewPlan>();
+
+                        // Create views at different scales
+                        foreach (var scaleFactor in _scaleFactors)
+                        {
+                            try
+                            {
+                                LoggingService.Log($"Creating view for level {level.Name} at scale {scaleFactor.Key} ({scaleFactor.Value})");
+                                
+                                ViewPlan view = CreateFloorPlanView(doc, level, scaleFactor.Value);
+                                if (view != null && view.IsValidObject)
+                                {
+                                    LoggingService.Log($"Successfully created view: {view.Name} for level {level.Name}");
+                                    levelViews.Add(view);
+                                }
+                                else
+                                {
+                                    LoggingService.LogWarning($"Failed to create view for level {level.Name} at scale {scaleFactor.Key}");
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                LoggingService.LogError($"Error creating view for level {level.Name} at scale {scaleFactor.Key}: {ex.Message}");
+                                LoggingService.LogError($"Stack trace: {ex.StackTrace}");
+                                // Continue with next scale
+                            }
+                        }
+
+                        if (levelViews.Count > 0)
+                        {
+                            LoggingService.Log($"Added {levelViews.Count} views for level {level.Name}");
+                            viewsByLevel[level] = levelViews;
+                        }
+                        else
+                        {
+                            LoggingService.LogWarning($"No views were created for level {level.Name}");
+                        }
                     }
-                    else
+                    catch (Exception ex)
                     {
-                        LoggingService.LogWarning($"Failed to create view for level {level.Name} at scale {scaleFactor.Key}");
+                        LoggingService.LogError($"Error processing level {level?.Name ?? "unknown"}: {ex.Message}");
+                        LoggingService.LogError($"Stack trace: {ex.StackTrace}");
+                        // Continue with next level
                     }
                 }
 
-                if (levelViews.Count > 0)
-                {
-                    LoggingService.Log($"Added {levelViews.Count} views for level {level.Name}");
-                    viewsByLevel[level] = levelViews;
-                }
-                else
-                {
-                    LoggingService.LogWarning($"No views were created for level {level.Name}");
-                }
+                LoggingService.Log($"Created a total of {viewsByLevel.Values.Sum(v => v.Count)} views across {viewsByLevel.Count} levels");
+                return viewsByLevel;
             }
-
-            LoggingService.Log($"Created a total of {viewsByLevel.Values.Sum(v => v.Count)} views across {viewsByLevel.Count} levels");
-            return viewsByLevel;
+            catch (Exception ex)
+            {
+                LoggingService.LogError($"Error in CreateViewsForLevels: {ex.Message}");
+                LoggingService.LogError($"Stack trace: {ex.StackTrace}");
+                return new Dictionary<Level, List<ViewPlan>>();
+            }
         }
 
         /// <summary>
@@ -281,10 +308,10 @@ namespace ipx.revit.reports.Services
         /// </summary>
         /// <param name="doc">The Revit document</param>
         /// <param name="viewsByLevel">The views grouped by level</param>
-        /// <returns>A dictionary of levels and their scope boxes</returns>
-        private static Dictionary<Level, Element> CreateScopeBoxesForLevels(Document doc, Dictionary<Level, List<ViewPlan>> viewsByLevel)
+        /// <returns>A dictionary of levels and their curve loops</returns>
+        private static Dictionary<Level, CurveLoop> CreateScopeBoxesForLevels(Document doc, Dictionary<Level, List<ViewPlan>> viewsByLevel)
         {
-            Dictionary<Level, Element> scopeBoxesByLevel = new Dictionary<Level, Element>();
+            Dictionary<Level, CurveLoop> curveLoopsByLevel = new Dictionary<Level, CurveLoop>();
 
             foreach (var levelViews in viewsByLevel)
             {
@@ -293,74 +320,76 @@ namespace ipx.revit.reports.Services
 
                 if (level == null || !level.IsValidObject || views == null || views.Count == 0)
                 {
-                    LoggingService.LogWarning("Invalid level or views encountered, skipping scope box creation");
+                    LoggingService.LogWarning("Invalid level or views encountered, skipping curve loop creation");
                     continue;
                 }
 
-                // Use the smallest scale view to create the scope box
+                // Use the smallest scale view to create the curve loop
                 ViewPlan smallestScaleView = views.OrderByDescending(v => v.Scale).FirstOrDefault();
                 if (smallestScaleView == null || !smallestScaleView.IsValidObject)
                 {
-                    LoggingService.LogWarning($"No valid view found for level {level.Name}, skipping scope box creation");
+                    LoggingService.LogWarning($"No valid view found for level {level.Name}, skipping curve loop creation");
                     continue;
                 }
 
-                // Create a scope box using RevitScopeBoxService
-                Element scopeBox = RevitScopeBoxService.CreateViewBoundaryForLevel(doc, smallestScaleView, level.Name);
-                if (scopeBox != null && scopeBox.IsValidObject)
+                // Create a curve loop using RevitScopeBoxService
+                CurveLoop curveLoop = RevitScopeBoxService.CreateViewBoundaryForLevel(doc, smallestScaleView, level.Name);
+                if (curveLoop != null)
                 {
-                    scopeBoxesByLevel[level] = scopeBox;
+                    curveLoopsByLevel[level] = curveLoop;
+                    LoggingService.Log($"Created curve loop for level {level.Name}");
                 }
             }
 
-            return scopeBoxesByLevel;
+            return curveLoopsByLevel;
         }
 
         /// <summary>
-        /// Applies scope boxes to views
+        /// Applies curve loops to views
         /// </summary>
         /// <param name="doc">The Revit document</param>
         /// <param name="viewsByLevel">The views grouped by level</param>
-        /// <param name="scopeBoxesByLevel">The scope boxes grouped by level</param>
-        private static void ApplyScopeBoxesToViews(Document doc, Dictionary<Level, List<ViewPlan>> viewsByLevel, Dictionary<Level, Element> scopeBoxesByLevel)
+        /// <param name="curveLoopsByLevel">The curve loops grouped by level</param>
+        private static void ApplyScopeBoxesToViews(Document doc, Dictionary<Level, List<ViewPlan>> viewsByLevel, Dictionary<Level, CurveLoop> curveLoopsByLevel)
         {
-            using (Transaction tx = new Transaction(doc, "Apply Scope Boxes"))
+            try
             {
-                tx.Start();
-                try
+                LoggingService.Log("Applying curve loops to views");
+
+                // Get all floor plan views
+                FilteredElementCollector collector = new FilteredElementCollector(doc);
+                IList<Element> views = collector.OfClass(typeof(ViewPlan))
+                    .Where(e => ((ViewPlan)e).ViewType == ViewType.FloorPlan)
+                    .ToList();
+
+                foreach (Element viewElement in views)
                 {
-                    foreach (var levelViews in viewsByLevel)
+                    ViewPlan view = viewElement as ViewPlan;
+                    if (view == null) continue;
+
+                    string levelName = view.GenLevel?.Name;
+                    if (string.IsNullOrEmpty(levelName)) continue;
+
+                    if (curveLoopsByLevel.TryGetValue(view.GenLevel, out CurveLoop curveLoop))
                     {
-                        Level level = levelViews.Key;
-                        List<ViewPlan> views = levelViews.Value;
-
-                        if (level == null || !level.IsValidObject || views == null || views.Count == 0)
-                            continue;
-
-                        if (scopeBoxesByLevel.TryGetValue(level, out Element scopeBox) && scopeBox != null && scopeBox.IsValidObject)
+                        try
                         {
-                            foreach (ViewPlan view in views)
-                            {
-                                if (view != null && view.IsValidObject)
-                                {
-                                    // Set the view's crop box to match the boundary
-                                    view.CropBox = scopeBox.get_BoundingBox(null);
-                                    view.CropBoxVisible = true;
-                                    
-                                    // In Revit 2023, we don't need to set a scope box parameter
-                                    // The crop box is sufficient for controlling the view boundary
-                                    LoggingService.LogDebug($"Set crop box for view {view.Name}");
-                                }
-                            }
+                            LoggingService.Log($"Applying curve loop to view {view.Name}");
+                            
+                            // Apply the curve loop to the view using RevitScopeBoxService
+                            RevitScopeBoxService.ApplyCropRegionToView(doc, view, curveLoop);
+                            LoggingService.Log($"Successfully applied curve loop to view {view.Name}");
+                        }
+                        catch (Exception ex)
+                        {
+                            LoggingService.LogError($"Error applying curve loop to view: {ex.Message}");
                         }
                     }
-                    tx.Commit();
                 }
-                catch (Exception ex)
-                {
-                    tx.RollBack();
-                    LoggingService.LogError($"Error applying scope boxes: {ex.Message}");
-                }
+            }
+            catch (Exception ex)
+            {
+                LoggingService.LogError($"Error in ApplyScopeBoxesToViews: {ex.Message}");
             }
         }
 
@@ -372,28 +401,109 @@ namespace ipx.revit.reports.Services
         /// <returns>True if the level exists, false otherwise</returns>
         private static bool LevelExists(Document doc, string levelName)
         {
-            FilteredElementCollector collector = new FilteredElementCollector(doc);
-            IList<Element> levels = collector.OfClass(typeof(Level)).ToElements();
-            
-            return levels.Any(e => e.Name == levelName);
+            try
+            {
+                LoggingService.Log($"Checking if level '{levelName}' exists");
+                
+                FilteredElementCollector collector = new FilteredElementCollector(doc);
+                IList<Element> levels = collector.OfClass(typeof(Level)).ToElements();
+                
+                bool exists = levels.Any(e => e.Name == levelName);
+                
+                if (exists)
+                {
+                    LoggingService.Log($"Level '{levelName}' exists");
+                }
+                else
+                {
+                    LoggingService.Log($"Level '{levelName}' does not exist");
+                }
+                
+                return exists;
+            }
+            catch (Exception ex)
+            {
+                LoggingService.LogError($"Error checking if level '{levelName}' exists: {ex.Message}");
+                LoggingService.LogError($"Stack trace: {ex.StackTrace}");
+                return false;
+            }
         }
 
         /// <summary>
-        /// Checks if a view with the specified name exists
+        /// Checks if a view exists with the specified criteria
         /// </summary>
         /// <param name="doc">The Revit document</param>
-        /// <param name="viewName">The name of the view</param>
-        /// <returns>True if the view exists, false otherwise</returns>
-        private static bool ViewExists(Document doc, string viewName)
+        /// <param name="viewName">The name of the view to check</param>
+        /// <param name="levelName">Optional level name to check</param>
+        /// <param name="scale">Optional scale value to check</param>
+        /// <returns>True if a view exists matching all specified criteria, false otherwise</returns>
+        private static bool ViewExists(Document doc, string viewName, string levelName = null, int? scale = null)
         {
-            FilteredElementCollector collector = new FilteredElementCollector(doc);
-            IList<Element> views = collector.OfClass(typeof(View)).ToElements();
-            
-            return views.Any(e => e.Name == viewName);
+            try
+            {
+                LoggingService.Log($"Checking if view '{viewName}' exists");
+                if (levelName != null)
+                {
+                    LoggingService.Log($"Level name filter: '{levelName}'");
+                }
+                if (scale.HasValue)
+                {
+                    LoggingService.Log($"Scale filter: {scale.Value}");
+                }
+                
+                FilteredElementCollector collector = new FilteredElementCollector(doc);
+                IList<Element> views = collector.OfClass(typeof(View)).ToElements();
+                
+                bool exists = views.Any(e => {
+                    if (e.Name != viewName) return false;
+                    
+                    View view = e as View;
+                    if (view == null) return false;
+                    
+                    if (levelName != null)
+                    {
+                        // For ViewPlan, we can get the level directly
+                        if (view is ViewPlan viewPlan)
+                        {
+                            if (viewPlan.GenLevel?.Name != levelName) return false;
+                        }
+                        else
+                        {
+                            // For other view types, we'll skip the level check since we can't reliably get the level
+                            return false;
+                        }
+                    }
+                    
+                    if (scale.HasValue)
+                    {
+                        // Scale is a direct property of View in Revit 2023
+                        if (view.Scale != scale.Value) return false;
+                    }
+                    
+                    return true;
+                });
+                
+                if (exists)
+                {
+                    LoggingService.Log($"View '{viewName}' exists with specified criteria");
+                }
+                else
+                {
+                    LoggingService.Log($"View '{viewName}' does not exist with specified criteria");
+                }
+                
+                return exists;
+            }
+            catch (Exception ex)
+            {
+                LoggingService.LogError($"Error checking if view '{viewName}' exists: {ex.Message}");
+                LoggingService.LogError($"Stack trace: {ex.StackTrace}");
+                return false;
+            }
         }
 
         /// <summary>
-        /// Checks if a view with the specified name and scale already exists
+        /// Checks if a view with the specified name and scale already exists for a level
         /// </summary>
         /// <param name="doc">The Revit document</param>
         /// <param name="levelName">The level name</param>
@@ -401,9 +511,30 @@ namespace ipx.revit.reports.Services
         /// <returns>True if the view exists, false otherwise</returns>
         private static bool ViewExistsForLevelAndScale(Document doc, string levelName, int scale)
         {
-            string viewName = $"{levelName} - Scale {scale}";
-            
-            return ViewExists(doc, viewName);
+            try
+            {
+                LoggingService.Log($"Checking if view exists for level '{levelName}' at scale {scale}");
+                
+                string viewName = $"{levelName} - Scale {scale}";
+                bool exists = ViewExists(doc, viewName, levelName, scale);
+                
+                if (exists)
+                {
+                    LoggingService.Log($"View '{viewName}' exists for level '{levelName}' at scale {scale}");
+                }
+                else
+                {
+                    LoggingService.Log($"View '{viewName}' does not exist for level '{levelName}' at scale {scale}");
+                }
+                
+                return exists;
+            }
+            catch (Exception ex)
+            {
+                LoggingService.LogError($"Error checking if view exists for level '{levelName}' at scale {scale}: {ex.Message}");
+                LoggingService.LogError($"Stack trace: {ex.StackTrace}");
+                return false;
+            }
         }
 
         /// <summary>
@@ -413,30 +544,43 @@ namespace ipx.revit.reports.Services
         /// <returns>The floor plan view family type</returns>
         private static ViewFamilyType GetFloorPlanViewFamilyType(Document doc)
         {
-            // Get all view family types
-            FilteredElementCollector collector = new FilteredElementCollector(doc);
-            IList<Element> viewFamilyTypes = collector.OfClass(typeof(ViewFamilyType)).ToElements();
-            
-            // Find the Floor Plan view family type
-            ViewFamilyType floorPlanType = null;
-            foreach (Element element in viewFamilyTypes)
+            try
             {
-                ViewFamilyType viewType = element as ViewFamilyType;
-                if (viewType != null && viewType.ViewFamily == ViewFamily.FloorPlan)
+                LoggingService.Log("Getting floor plan view family type");
+                
+                // Get all view family types
+                FilteredElementCollector collector = new FilteredElementCollector(doc);
+                IList<Element> viewFamilyTypes = collector.OfClass(typeof(ViewFamilyType)).ToElements();
+                
+                LoggingService.Log($"Found {viewFamilyTypes.Count} view family types");
+                
+                // Find the Floor Plan view family type
+                ViewFamilyType floorPlanType = null;
+                foreach (Element element in viewFamilyTypes)
                 {
-                    floorPlanType = viewType;
-                    LoggingService.Log($"Found Floor Plan view family type: {floorPlanType.Name}");
-                    break;
+                    ViewFamilyType viewType = element as ViewFamilyType;
+                    if (viewType != null && viewType.ViewFamily == ViewFamily.FloorPlan)
+                    {
+                        floorPlanType = viewType;
+                        LoggingService.Log($"Found Floor Plan view family type: {floorPlanType.Name}");
+                        break;
+                    }
                 }
+                
+                if (floorPlanType == null)
+                {
+                    LoggingService.LogError("Could not find Floor Plan view family type");
+                    return null;
+                }
+                
+                return floorPlanType;
             }
-            
-            if (floorPlanType == null)
+            catch (Exception ex)
             {
-                LoggingService.LogError("Could not find Floor Plan view family type");
+                LoggingService.LogError($"Error getting floor plan view family type: {ex.Message}");
+                LoggingService.LogError($"Stack trace: {ex.StackTrace}");
                 return null;
             }
-            
-            return floorPlanType;
         }
     }
 }

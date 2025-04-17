@@ -37,33 +37,5 @@ namespace ipx.revit.reports.Services
 
             return ElementId.InvalidElementId;
         }
-
-        /// <summary>
-        /// Finds a title block in the document
-        /// </summary>
-        /// <param name="doc">The Revit document</param>
-        /// <returns>A title block family symbol</returns>
-        public static FamilySymbol FindTitleBlock(Document doc)
-        {
-            // Get all title block types
-            var titleBlocks = new FilteredElementCollector(doc)
-                .OfCategory(BuiltInCategory.OST_TitleBlocks)
-                .OfClass(typeof(FamilySymbol))
-                .FirstOrDefault(e => e is FamilySymbol) as FamilySymbol;
-
-            if (titleBlocks == null)
-            {
-                LoggingService.LogWarning("No title blocks found in the document");
-                return null;
-            }
-
-            // Ensure the symbol is active
-            if (!titleBlocks.IsActive)
-            {
-                titleBlocks.Activate();
-            }
-
-            return titleBlocks;
-        }
     }
 }

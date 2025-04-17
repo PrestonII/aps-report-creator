@@ -15,14 +15,14 @@ namespace ipx.revit.reports.Services
         /// </summary>
         /// <param name="viewName">Name for the new drafting view</param>
         /// <returns>The created drafting view</returns>
-        public static ViewDrafting CreateDraftingView(Document _doc, string viewName)
+        public static ViewDrafting CreateDraftingView(Document doc, string viewName)
         {
             try
             {
                 LoggingService.Log($"Creating drafting view: {viewName}");
 
                 // Find the drafting view type
-                ViewFamilyType? draftingViewType = new FilteredElementCollector(_doc)
+                ViewFamilyType? draftingViewType = new FilteredElementCollector(doc)
                     .OfClass(typeof(ViewFamilyType))
                     .FirstOrDefault(v => v is ViewFamilyType vft && vft.ViewFamily == ViewFamily.Drafting) as ViewFamilyType;
 
@@ -34,7 +34,7 @@ namespace ipx.revit.reports.Services
 
 
                 // Create the drafting view
-                ViewDrafting draftingView = ViewDrafting.Create(_doc, draftingViewType.Id);
+                ViewDrafting draftingView = ViewDrafting.Create(doc, draftingViewType.Id);
 
 
                 // Set the name of the view

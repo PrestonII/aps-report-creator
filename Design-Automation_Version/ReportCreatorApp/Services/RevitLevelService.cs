@@ -95,5 +95,47 @@ namespace ipx.revit.reports.Services
 
             return levels.Any(e => e.Name == levelName);
         }
+        
+        /// <summary>
+        /// Finds a level by name in the document
+        /// </summary>
+        /// <param name="doc">The Revit document</param>
+        /// <param name="levelName">The level name</param>
+        /// <returns>The level if found, null otherwise</returns>
+        public static Level FindLevelByName(Document doc, string levelName)
+        {
+            FilteredElementCollector collector = new FilteredElementCollector(doc);
+            IList<Element> levels = collector
+                .OfClass(typeof(Level))
+                .WhereElementIsNotElementType()
+                .ToElements();
+
+            return levels.FirstOrDefault(e => e.Name == levelName) as Level;
+        }
+        
+        /// <summary>
+        /// Finds the corresponding level in a linked document
+        /// </summary>
+        /// <param name="linkDoc">The linked document</param>
+        /// <param name="mainLevel">The level in the main document</param>
+        /// <returns>The corresponding level in the linked document, or null if not found</returns>
+        public static Level FindCorrespondingLevel(Document linkDoc, Level mainLevel)
+        {
+            // First try to find a level with the same name
+            FilteredElementCollector collector = new FilteredElementCollector(linkDoc);
+            IList<Element> levels = collector.OfClass(typeof(Level)).ToElements();
+
+            Level matchingLevel = levels
+                .Cast<Level>()
+                .FirstOrDefault(l => l.Name == mainLevel.Name);
+
+            if (matchingLevel != null)
+                return matchingLevel;
+
+            // If no exact match, try to find a level at the same elevation
+            return levels
+                .Cast<Level>()
+                .FirstOrDefault(l => Math.Abs(l.Elevation - mainLevel.Elevation) < 0.001);
+        }
     }
 } 
