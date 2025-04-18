@@ -50,16 +50,24 @@ namespace ipx.revit.reports.Services
             // Sort views by scale (larger scale = more detail)
             var sortedViews = views.OrderByDescending(v => v.Scale).ToList();
             
+            IPXView bestFittingView = null;
+            double bestFittingArea = 0;
+
             foreach (IPXView view in sortedViews)
             {
                 // Check if the view fits within the constraints
                 if (view.Width <= maxWidth && view.Height <= maxHeight)
                 {
-                    return view;
+                    double viewArea = view.Width * view.Height;
+                    if (viewArea > bestFittingArea)
+                    {
+                        bestFittingArea = viewArea;
+                        bestFittingView = view;
+                    }
                 }
             }
             
-            return null;
+            return bestFittingView;
         }
 
         /// <summary>

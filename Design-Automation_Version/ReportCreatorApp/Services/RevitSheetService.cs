@@ -6,7 +6,6 @@ using Autodesk.Revit.DB;
 
 using ipx.revit.reports._Constants;
 using ipx.revit.reports.Models;
-using ipx.revit.reports.Utilities;
 
 namespace ipx.revit.reports.Services
 {
@@ -15,144 +14,61 @@ namespace ipx.revit.reports.Services
     /// </summary>
     public static class RevitSheetService
     {
-        // Constants for sheet dimensions (in feet)
-        private const double SHEET_WIDTH = 8.5; // Letter size width
+        // Sheet dimensions (in feet)
+        private const double SHEET_WIDTH = 8.5;  // Letter size width
         private const double SHEET_HEIGHT = 11.0; // Letter size height
 
-        // Constants for individual view placement
-        private const double INDIVIDUAL_VIEW_MAX_WIDTH = 10.5 / 12.0; // 10.5 inches in feet
+        // Margin constants (in feet)
+        private const double SHEET_MARGIN = 0.25 / 12.0;  // 0.25 inches in feet
+
+        // Individual sheet view constraints
+        private const double INDIVIDUAL_VIEW_MAX_WIDTH = 10.5 / 12.0;  // 10.5 inches in feet
         private const double INDIVIDUAL_VIEW_MAX_HEIGHT = 7.25 / 12.0; // 7.25 inches in feet
 
-        // Constants for 2-panel sheet
-        private const double TWO_PANEL_VIEW_WIDTH = 5.125 / 12.0; // 5.125 inches in feet
-        private const double TWO_PANEL_VIEW_HEIGHT = 7.25 / 12.0; // 7.25 inches in feet
-        private const double PANEL_OFFSET = 0.25 / 12.0; // 0.25 inches in feet
-
-        // Constants for 4-panel sheet
-        private const double FOUR_PANEL_VIEW_WIDTH = 5.125 / 12.0; // 5.125 inches in feet
-        private const double FOUR_PANEL_VIEW_HEIGHT = 3.5 / 12.0; // 3.5 inches in feet
+        // Combined sheet panel dimensions
+        private const double PANEL_OFFSET = 0.25 / 12.0;  // 0.25 inches in feet
+        private const double TWO_PANEL_VIEW_WIDTH = 5.125 / 12.0;  // 5.125 inches in feet
+        private const double TWO_PANEL_VIEW_HEIGHT = 7.25 / 12.0;  // 7.25 inches in feet
+        private const double FOUR_PANEL_VIEW_WIDTH = 5.125 / 12.0;  // 5.125 inches in feet
+        private const double FOUR_PANEL_VIEW_HEIGHT = 3.5 / 12.0;   // 3.5 inches in feet
 
         /// <summary>
-        /// Places views on sheets
+        /// Creates sheets for views and places views on sheets
         /// </summary>
         /// <param name="doc">The Revit document</param>
-        /// <param name="views">The views to place</param>
-        /// <param name="sheets">The sheets to place views on</param>
-        /// <returns>The number of views placed</returns>
-        public static int PlaceViewsOnSheets(Document doc, IList<ViewPlan> views, IList<ViewSheet> sheets)
+        /// <param name="views">The views to create sheets for</param>
+        /// <returns>The number of sheets created and views placed</returns>
+        public static int CreateAndPlaceViewsOnSheets(Document doc, IList<ViewPlan> views)
         {
             try
             {
-                LoggingService.Log($"Starting to place {views.Count} views on {sheets.Count} sheets...");
+                LoggingService.Log("Starting to create sheets and place views...");
 
-                // Filter out template views and ensure they're valid ViewPlan objects
-                IList<ViewPlan> nonTemplateViews = views.Where(v =>
-                    v != null &&
-                    v.IsValidObject &&
-                    !v.IsTemplate
-                ).ToList();
-
-                LoggingService.Log($"Found {nonTemplateViews.Count} valid non-template views to place");
-
-                if (nonTemplateViews.Count == 0)
+                // Convert ViewPlans to IPXViews
+                var ipxViews = RevitViewConverter.ConvertToIPXViews(views);
+                if (ipxViews.Count == 0)
                 {
-                    LoggingService.LogWarning("No valid non-template views to place on sheets");
+                    LoggingService.LogWarning("No valid views to create sheets for");
                     return 0;
                 }
 
-                if (sheets.Count == 0)
-                {
-                    LoggingService.LogWarning("No sheets to place views on");
-                    return 0;
-                }
+                // Group views by level
+                var viewsByLevel = ViewService.GroupViewsByLevel(ipxViews);
+                LoggingService.Log($"Found {viewsByLevel.Count} unique levels from views");
 
-                int viewsPlaced = 0;
+                // Create individual sheets
+                int individualSheetCount = CreateIndividualSheets(doc, viewsByLevel);
+                LoggingService.Log($"Created {individualSheetCount} individual sheets");
 
-                // Place views on sheets
-                foreach (ViewSheet sheet in sheets)
-                {
-                    if (sheet == null || !sheet.IsValidObject)
-                    {
-                        LoggingService.LogWarning("Invalid sheet encountered, skipping");
-                        continue;
-                    }
+                // Create combined sheets
+                int combinedSheetCount = CreateCombinedSheets(doc, viewsByLevel);
+                LoggingService.Log($"Created {combinedSheetCount} combined sheets");
 
-                    // Get the titleblock
-                    ElementId titleblockId = RevitTitleBlockService.GetTitleblockId(doc, CONSTANTS._TITLEBLOCKNAME);
-                    if (titleblockId == ElementId.InvalidElementId)
-                    {
-                        LoggingService.LogWarning($"Could not find titleblock for sheet {sheet.Name}");
-                        continue;
-                    }
-
-                    // Get the titleblock outline
-                    Outline titleblockOutline = GetTitleblockOutline(doc, titleblockId);
-                    if (titleblockOutline == null)
-                    {
-                        LoggingService.LogWarning($"Could not get titleblock outline for sheet {sheet.Name}");
-                        continue;
-                    }
-
-                    // Calculate the available area for views
-                    double availableWidth = titleblockOutline.MaximumPoint.X - titleblockOutline.MinimumPoint.X - 2.0; // 2 feet margin
-                    double availableHeight = titleblockOutline.MaximumPoint.Y - titleblockOutline.MinimumPoint.Y - 2.0; // 2 feet margin
-
-                    // Calculate the number of views that can fit on the sheet
-                    int maxViewsPerSheet = (int)(availableWidth * availableHeight / (4.0 * 3.0)); // Assuming each view takes 4x3 feet
-                    maxViewsPerSheet = Math.Max(1, maxViewsPerSheet); // At least 1 view per sheet
-
-                    // Place views on the sheet
-                    int viewsOnSheet = 0;
-                    double x = titleblockOutline.MinimumPoint.X + 1.0; // 1 foot margin
-                    double y = titleblockOutline.MinimumPoint.Y + 1.0; // 1 foot margin
-
-                    foreach (ViewPlan view in nonTemplateViews)
-                    {
-                        if (viewsOnSheet >= maxViewsPerSheet)
-                            break;
-
-                        if (view == null || !view.IsValidObject)
-                        {
-                            LoggingService.LogWarning($"Invalid view encountered, skipping");
-                            continue;
-                        }
-
-                        // Convert ViewPlan to IPXView
-                        IPXView ipxView = RevitViewConverter.ConvertToIPXView(view);
-                        if (ipxView == null)
-                        {
-                            LoggingService.LogWarning($"Could not convert view {view.Name} to IPXView, skipping");
-                            continue;
-                        }
-
-                        // Place the view on the sheet
-                        XYZ viewCenter = new XYZ(x, y, 0);
-                        Viewport viewport = PlaceViewOnSheet(doc, sheet, ipxView, viewCenter);
-
-                        if (viewport != null)
-                        {
-                            // Move to the next position
-                            x += 4.0; // 4 feet width
-                            if (x + 4.0 > titleblockOutline.MaximumPoint.X - 1.0)
-                            {
-                                x = titleblockOutline.MinimumPoint.X + 1.0;
-                                y += 3.0; // 3 feet height
-                            }
-
-                            viewsOnSheet++;
-                            viewsPlaced++;
-                        }
-                    }
-
-                    LoggingService.Log($"Placed {viewsOnSheet} views on sheet {sheet.Name}");
-                }
-
-                LoggingService.Log($"Placed {viewsPlaced} views on {sheets.Count} sheets");
-                return viewsPlaced;
+                return individualSheetCount + combinedSheetCount;
             }
             catch (Exception ex)
             {
-                LoggingService.LogError($"Error placing views on sheets: {ex.Message}");
+                LoggingService.LogError($"Error creating and placing views on sheets: {ex.Message}");
                 return 0;
             }
         }
@@ -160,9 +76,6 @@ namespace ipx.revit.reports.Services
         /// <summary>
         /// Creates individual sheets for each level
         /// </summary>
-        /// <param name="doc">The Revit document</param>
-        /// <param name="viewsByLevel">The views grouped by level</param>
-        /// <returns>The number of individual sheets created</returns>
         private static int CreateIndividualSheets(Document doc, Dictionary<string, List<IPXView>> viewsByLevel)
         {
             int sheetCount = 0;
@@ -184,27 +97,23 @@ namespace ipx.revit.reports.Services
                     string levelName = levelViews.Key;
                     List<IPXView> views = levelViews.Value;
 
-                    // Find the largest view that fits within the individual view constraints
+                    // Find the best fitting view for individual sheet
                     IPXView bestView = ViewService.FindBestFittingView(views, INDIVIDUAL_VIEW_MAX_WIDTH, INDIVIDUAL_VIEW_MAX_HEIGHT);
 
                     if (bestView != null)
                     {
-                        // Get the ElementId of the view
-                        ElementId viewId = RevitViewConverter.GetElementId(bestView);
+                        // Create a sheet
+                        ViewSheet sheet = ViewSheet.Create(doc, titleblockId);
+                        sheet.Name = $"Individual - {levelName}";
 
-                        if (viewId != ElementId.InvalidElementId)
-                        {
-                            // Create a sheet
-                            ViewSheet sheet = ViewSheet.Create(doc, titleblockId);
-                            sheet.Name = $"Individual - {levelName}";
+                        // Place the view on the sheet relative to the titleblock's position
+                        // The view should be centered on the sheet, so we'll use the sheet dimensions
+                        // but offset from the titleblock's position
+                        XYZ viewCenter = new XYZ(0, 0, 0);  // Position relative to titleblock
+                        PlaceViewOnSheet(doc, sheet, bestView, viewCenter);
 
-                            // Place the view on the sheet
-                            XYZ viewCenter = new XYZ(SHEET_WIDTH / 2, SHEET_HEIGHT / 2, 0);
-                            PlaceViewOnSheet(doc, sheet, bestView, viewCenter);
-
-                            LoggingService.Log($"Created individual sheet for level {levelName} with view {bestView.Name}");
-                            sheetCount++;
-                        }
+                        LoggingService.Log($"Created individual sheet for level {levelName} with view {bestView.Name}");
+                        sheetCount++;
                     }
                     else
                     {
@@ -221,9 +130,6 @@ namespace ipx.revit.reports.Services
         /// <summary>
         /// Creates combined sheets for multiple levels
         /// </summary>
-        /// <param name="doc">The Revit document</param>
-        /// <param name="viewsByLevel">The views grouped by level</param>
-        /// <returns>The number of combined sheets created</returns>
         private static int CreateCombinedSheets(Document doc, Dictionary<string, List<IPXView>> viewsByLevel)
         {
             int sheetCount = 0;
@@ -236,11 +142,27 @@ namespace ipx.revit.reports.Services
                 return 0;
             }
 
-            // Sort levels by elevation (assuming level names contain numbers)
-            var sortedLevels = LevelUtility.SortLevelsByNumber(viewsByLevel.Keys.ToList());
+            // Sort levels by name to ensure consistent ordering
+            var sortedLevels = viewsByLevel.Keys.OrderBy(l => l).ToList();
 
             // Group levels into sets of 2-4 for combined sheets
-            List<List<string>> levelGroups = LevelUtility.GroupLevelsForCombinedSheets(sortedLevels);
+            var levelGroups = new List<List<string>>();
+            var currentGroup = new List<string>();
+
+            foreach (var level in sortedLevels)
+            {
+                currentGroup.Add(level);
+                if (currentGroup.Count == 4)
+                {
+                    levelGroups.Add(currentGroup);
+                    currentGroup = new List<string>();
+                }
+            }
+
+            if (currentGroup.Count > 0)
+            {
+                levelGroups.Add(currentGroup);
+            }
 
             using (Transaction tx = new Transaction(doc, "Create Combined Sheets"))
             {
@@ -280,10 +202,6 @@ namespace ipx.revit.reports.Services
         /// <summary>
         /// Places views on a 2-panel sheet
         /// </summary>
-        /// <param name="doc">The Revit document</param>
-        /// <param name="sheet">The sheet</param>
-        /// <param name="levelGroup">The group of levels for this sheet</param>
-        /// <param name="viewsByLevel">The views grouped by level</param>
         private static void PlaceViewsOnTwoPanelSheet(Document doc, ViewSheet sheet, List<string> levelGroup, Dictionary<string, List<IPXView>> viewsByLevel)
         {
             // Panel A (top-left)
@@ -294,19 +212,13 @@ namespace ipx.revit.reports.Services
 
                 if (view != null)
                 {
-                    // Get the ElementId of the view
-                    ElementId viewId = RevitViewConverter.GetElementId(view);
+                    // Calculate the center of Panel A
+                    double x = PANEL_OFFSET + (TWO_PANEL_VIEW_WIDTH / 2);
+                    double y = SHEET_HEIGHT - (PANEL_OFFSET + (TWO_PANEL_VIEW_HEIGHT / 2));
+                    XYZ viewCenter = new XYZ(x, y, 0);
 
-                    if (viewId != ElementId.InvalidElementId)
-                    {
-                        // Calculate the center of Panel A
-                        double x = PANEL_OFFSET + (TWO_PANEL_VIEW_WIDTH / 2);
-                        double y = SHEET_HEIGHT - (PANEL_OFFSET + (TWO_PANEL_VIEW_HEIGHT / 2));
-                        XYZ viewCenter = new XYZ(x, y, 0);
-
-                        PlaceViewOnSheet(doc, sheet, view, viewCenter);
-                        LoggingService.Log($"Placed view {view.Name} in Panel A of sheet {sheet.Name}");
-                    }
+                    PlaceViewOnSheet(doc, sheet, view, viewCenter);
+                    LoggingService.Log($"Placed view {view.Name} in Panel A of sheet {sheet.Name}");
                 }
             }
 
@@ -318,19 +230,13 @@ namespace ipx.revit.reports.Services
 
                 if (view != null)
                 {
-                    // Get the ElementId of the view
-                    ElementId viewId = RevitViewConverter.GetElementId(view);
+                    // Calculate the center of Panel B
+                    double x = SHEET_WIDTH - (PANEL_OFFSET + (TWO_PANEL_VIEW_WIDTH / 2));
+                    double y = SHEET_HEIGHT - (PANEL_OFFSET + (TWO_PANEL_VIEW_HEIGHT / 2));
+                    XYZ viewCenter = new XYZ(x, y, 0);
 
-                    if (viewId != ElementId.InvalidElementId)
-                    {
-                        // Calculate the center of Panel B
-                        double x = SHEET_WIDTH - (PANEL_OFFSET + (TWO_PANEL_VIEW_WIDTH / 2));
-                        double y = SHEET_HEIGHT - (PANEL_OFFSET + (TWO_PANEL_VIEW_HEIGHT / 2));
-                        XYZ viewCenter = new XYZ(x, y, 0);
-
-                        PlaceViewOnSheet(doc, sheet, view, viewCenter);
-                        LoggingService.Log($"Placed view {view.Name} in Panel B of sheet {sheet.Name}");
-                    }
+                    PlaceViewOnSheet(doc, sheet, view, viewCenter);
+                    LoggingService.Log($"Placed view {view.Name} in Panel B of sheet {sheet.Name}");
                 }
             }
         }
@@ -338,10 +244,6 @@ namespace ipx.revit.reports.Services
         /// <summary>
         /// Places views on a 4-panel sheet
         /// </summary>
-        /// <param name="doc">The Revit document</param>
-        /// <param name="sheet">The sheet</param>
-        /// <param name="levelGroup">The group of levels for this sheet</param>
-        /// <param name="viewsByLevel">The views grouped by level</param>
         private static void PlaceViewsOnFourPanelSheet(Document doc, ViewSheet sheet, List<string> levelGroup, Dictionary<string, List<IPXView>> viewsByLevel)
         {
             // Panel A (top-left)
@@ -352,19 +254,13 @@ namespace ipx.revit.reports.Services
 
                 if (view != null)
                 {
-                    // Get the ElementId of the view
-                    ElementId viewId = RevitViewConverter.GetElementId(view);
+                    // Calculate the center of Panel A
+                    double x = PANEL_OFFSET + (FOUR_PANEL_VIEW_WIDTH / 2);
+                    double y = SHEET_HEIGHT - (PANEL_OFFSET + (FOUR_PANEL_VIEW_HEIGHT / 2));
+                    XYZ viewCenter = new XYZ(x, y, 0);
 
-                    if (viewId != ElementId.InvalidElementId)
-                    {
-                        // Calculate the center of Panel A
-                        double x = PANEL_OFFSET + (FOUR_PANEL_VIEW_WIDTH / 2);
-                        double y = SHEET_HEIGHT - (PANEL_OFFSET + (FOUR_PANEL_VIEW_HEIGHT / 2));
-                        XYZ viewCenter = new XYZ(x, y, 0);
-
-                        PlaceViewOnSheet(doc, sheet, view, viewCenter);
-                        LoggingService.Log($"Placed view {view.Name} in Panel A of sheet {sheet.Name}");
-                    }
+                    PlaceViewOnSheet(doc, sheet, view, viewCenter);
+                    LoggingService.Log($"Placed view {view.Name} in Panel A of sheet {sheet.Name}");
                 }
             }
 
@@ -376,19 +272,13 @@ namespace ipx.revit.reports.Services
 
                 if (view != null)
                 {
-                    // Get the ElementId of the view
-                    ElementId viewId = RevitViewConverter.GetElementId(view);
+                    // Calculate the center of Panel B
+                    double x = SHEET_WIDTH - (PANEL_OFFSET + (FOUR_PANEL_VIEW_WIDTH / 2));
+                    double y = SHEET_HEIGHT - (PANEL_OFFSET + (FOUR_PANEL_VIEW_HEIGHT / 2));
+                    XYZ viewCenter = new XYZ(x, y, 0);
 
-                    if (viewId != ElementId.InvalidElementId)
-                    {
-                        // Calculate the center of Panel B
-                        double x = SHEET_WIDTH - (PANEL_OFFSET + (FOUR_PANEL_VIEW_WIDTH / 2));
-                        double y = SHEET_HEIGHT - (PANEL_OFFSET + (FOUR_PANEL_VIEW_HEIGHT / 2));
-                        XYZ viewCenter = new XYZ(x, y, 0);
-
-                        PlaceViewOnSheet(doc, sheet, view, viewCenter);
-                        LoggingService.Log($"Placed view {view.Name} in Panel B of sheet {sheet.Name}");
-                    }
+                    PlaceViewOnSheet(doc, sheet, view, viewCenter);
+                    LoggingService.Log($"Placed view {view.Name} in Panel B of sheet {sheet.Name}");
                 }
             }
 
@@ -400,19 +290,13 @@ namespace ipx.revit.reports.Services
 
                 if (view != null)
                 {
-                    // Get the ElementId of the view
-                    ElementId viewId = RevitViewConverter.GetElementId(view);
+                    // Calculate the center of Panel C
+                    double x = SHEET_WIDTH - (PANEL_OFFSET + (FOUR_PANEL_VIEW_WIDTH / 2));
+                    double y = PANEL_OFFSET + (FOUR_PANEL_VIEW_HEIGHT / 2);
+                    XYZ viewCenter = new XYZ(x, y, 0);
 
-                    if (viewId != ElementId.InvalidElementId)
-                    {
-                        // Calculate the center of Panel C
-                        double x = SHEET_WIDTH - (PANEL_OFFSET + (FOUR_PANEL_VIEW_WIDTH / 2));
-                        double y = PANEL_OFFSET + (FOUR_PANEL_VIEW_HEIGHT / 2);
-                        XYZ viewCenter = new XYZ(x, y, 0);
-
-                        PlaceViewOnSheet(doc, sheet, view, viewCenter);
-                        LoggingService.Log($"Placed view {view.Name} in Panel C of sheet {sheet.Name}");
-                    }
+                    PlaceViewOnSheet(doc, sheet, view, viewCenter);
+                    LoggingService.Log($"Placed view {view.Name} in Panel C of sheet {sheet.Name}");
                 }
             }
 
@@ -424,70 +308,14 @@ namespace ipx.revit.reports.Services
 
                 if (view != null)
                 {
-                    // Get the ElementId of the view
-                    ElementId viewId = RevitViewConverter.GetElementId(view);
+                    // Calculate the center of Panel D
+                    double x = PANEL_OFFSET + (FOUR_PANEL_VIEW_WIDTH / 2);
+                    double y = PANEL_OFFSET + (FOUR_PANEL_VIEW_HEIGHT / 2);
+                    XYZ viewCenter = new XYZ(x, y, 0);
 
-                    if (viewId != ElementId.InvalidElementId)
-                    {
-                        // Calculate the center of Panel D
-                        double x = PANEL_OFFSET + (FOUR_PANEL_VIEW_WIDTH / 2);
-                        double y = PANEL_OFFSET + (FOUR_PANEL_VIEW_HEIGHT / 2);
-                        XYZ viewCenter = new XYZ(x, y, 0);
-
-                        PlaceViewOnSheet(doc, sheet, view, viewCenter);
-                        LoggingService.Log($"Placed view {view.Name} in Panel D of sheet {sheet.Name}");
-                    }
+                    PlaceViewOnSheet(doc, sheet, view, viewCenter);
+                    LoggingService.Log($"Placed view {view.Name} in Panel D of sheet {sheet.Name}");
                 }
-            }
-        }
-
-        /// <summary>
-        /// Creates a sheet with the specified number and name
-        /// </summary>
-        /// <param name="doc">The Revit document</param>
-        /// <param name="sheetNumber">The sheet number</param>
-        /// <param name="sheetName">The sheet name</param>
-        /// <returns>The created sheet</returns>
-        public static ViewSheet CreateSheet(Document doc, string sheetNumber, string sheetName)
-        {
-            try
-            {
-                // Get the titleblock family
-                ElementId titleblockId = RevitTitleBlockService.GetTitleblockId(doc, CONSTANTS._TITLEBLOCKNAME);
-                if (titleblockId == ElementId.InvalidElementId)
-                {
-                    LoggingService.LogError($"Could not find the '{CONSTANTS._TITLEBLOCKNAME}' titleblock");
-                    return null;
-                }
-
-                ViewSheet sheet = null;
-                using (Transaction tx = new Transaction(doc, "Create Sheet"))
-                {
-                    tx.Start();
-                    try
-                    {
-                        sheet = ViewSheet.Create(doc, titleblockId);
-                        if (sheet != null)
-                        {
-                            sheet.SheetNumber = sheetNumber;
-                            sheet.Name = sheetName;
-                        }
-                        tx.Commit();
-                    }
-                    catch (Exception ex)
-                    {
-                        tx.RollBack();
-                        LoggingService.LogError($"Error creating sheet: {ex.Message}");
-                        return null;
-                    }
-                }
-
-                return sheet;
-            }
-            catch (Exception ex)
-            {
-                LoggingService.LogError($"Error in CreateSheet: {ex.Message}");
-                return null;
             }
         }
 
@@ -497,15 +325,166 @@ namespace ipx.revit.reports.Services
         /// <param name="doc">The Revit document</param>
         /// <param name="sheet">The sheet</param>
         /// <param name="ipxView">The view to place</param>
-        /// <param name="position">The position to place the view</param>
+        /// <param name="position">The position to place the view relative to the titleblock</param>
         /// <returns>The created viewport</returns>
-        public static Viewport PlaceViewOnSheet(Document doc, ViewSheet sheet, IPXView ipxView, XYZ position)
+        public static Viewport PlaceViewOnSheet(Document doc, ViewSheet sheet, IPXView ipxView, XYZ position, ElementId? titleblockFamilyId = null)
         {
-            LoggingService.Log($"Placing view {ipxView.Name} on sheet {sheet.Name}");
+            try
+            {
+                LoggingService.Log($"Attempting to place view {ipxView.Name} on sheet {sheet.Name}");
 
-            // Get the Revit view from the IPXView
-            ElementId viewId = RevitViewConverter.GetElementId(ipxView);
+                if (titleblockFamilyId == null)
+                {
+                    // Get the titleblock family ID
+                    ElementId titleblockId = RevitTitleBlockService.GetTitleblockId(doc, CONSTANTS._TITLEBLOCKNAME);
+                    titleblockFamilyId = (doc.GetElement(titleblockId) as FamilySymbol).Family.Id;
+                    if (titleblockFamilyId == ElementId.InvalidElementId)
+                    {
+                        LoggingService.LogError($"Could not find titleblock family {CONSTANTS._TITLEBLOCKNAME}");
+                        return null;
+                    }
+                    LoggingService.Log($"Found titleblock family ID: {titleblockFamilyId}");
+                }
 
+                // Find the titleblock instance on this sheet
+                FamilyInstance titleblockInstance = FindTitleblockOnSheet(doc, sheet, titleblockFamilyId);
+
+                if (titleblockInstance == null)
+                {
+                    LoggingService.Log($"No titleblock found on sheet {sheet.Name}, but continuing with view placement");
+                    // We'll continue without a titleblock, using the sheet's origin as reference
+                }
+                else
+                {
+                    LoggingService.Log($"Titleblock already exists on sheet {sheet.Name} with ID: {titleblockInstance.Id}");
+                }
+
+                // Get the Revit view from the IPXView
+                View revitView = GetRevitView(doc, ipxView);
+                if (revitView == null)
+                {
+                    LoggingService.LogError($"Could not get Revit view for {ipxView.Name}");
+                    return null;
+                }
+
+                // Calculate the absolute position
+                // If we have a titleblock, use its position as reference
+                // Otherwise, use the position directly
+                XYZ absolutePosition;
+                if (titleblockInstance != null)
+                {
+                    // Get the titleblock's position
+                    LocationPoint locationPoint = titleblockInstance.Location as LocationPoint;
+                    if (locationPoint != null)
+                    {
+                        XYZ titleblockPosition = locationPoint.Point;
+                        LoggingService.Log($"Titleblock position: ({titleblockPosition.X}, {titleblockPosition.Y})");
+
+                        absolutePosition = new XYZ(
+                            titleblockPosition.X + position.X,
+                            titleblockPosition.Y + position.Y,
+                            0
+                        );
+                    }
+                    else
+                    {
+                        // Fallback to using the position directly
+                        absolutePosition = position;
+                    }
+                }
+                else
+                {
+                    // No titleblock, use the position directly
+                    absolutePosition = position;
+                }
+
+                // Create the viewport
+                return CreateViewport(doc, sheet, revitView, absolutePosition, ipxView);
+            }
+            catch (Exception ex)
+            {
+                LoggingService.LogError($"Error placing view on sheet: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Creates a titleblock on a sheet if it doesn't already exist
+        /// </summary>
+        /// <param name="doc">The Revit document</param>
+        /// <param name="sheet">The sheet</param>
+        /// <param name="titleblockFamilyId">The titleblock family ID</param>
+        /// <returns>True if the titleblock was created or already exists, false otherwise</returns>
+        public static bool EnsureTitleblockExists(Document doc, ViewSheet sheet, ElementId titleblockFamilyId)
+        {
+            try
+            {
+                // Check if the titleblock already exists
+                FamilyInstance existingTitleblock = FindTitleblockOnSheet(doc, sheet, titleblockFamilyId);
+                if (existingTitleblock != null)
+                {
+                    LoggingService.Log($"Titleblock already exists on sheet {sheet.Name} with ID: {existingTitleblock.Id}");
+                    return true;
+                }
+
+                LoggingService.Log($"No titleblock found on sheet {sheet.Name}, creating one...");
+
+                // Create the titleblock on the sheet
+                FamilyInstance newTitleblockInstance = doc.Create.NewFamilyInstance(
+                    new XYZ(0, 0, 0), // Position at origin
+                    doc.GetElement(titleblockFamilyId) as FamilySymbol,
+                    sheet,
+                    Autodesk.Revit.DB.Structure.StructuralType.NonStructural);
+
+                if (newTitleblockInstance == null)
+                {
+                    LoggingService.LogError($"Failed to create titleblock on sheet {sheet.Name}");
+                    return false;
+                }
+
+                LoggingService.Log($"Created titleblock on sheet {sheet.Name}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                LoggingService.LogError($"Error ensuring titleblock exists: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Finds a titleblock on a sheet
+        /// </summary>
+        private static FamilyInstance FindTitleblockOnSheet(Document doc, ViewSheet sheet, ElementId titleblockFamilyId)
+        {
+            // Create a collector to find the titleblock on this sheet
+            FilteredElementCollector collector = new FilteredElementCollector(doc, sheet.Id);
+            collector.OfClass(typeof(FamilyInstance));
+
+            int familyInstanceCount = 0;
+            foreach (Element element in collector)
+            {
+                familyInstanceCount++;
+                if (element is FamilyInstance instance)
+                {
+                    LoggingService.Log($"Found family instance on sheet: {instance.Symbol.Family.Name}, ID: {instance.Symbol.Family.Id}");
+                    if (instance.Symbol.Family.Id == titleblockFamilyId)
+                    {
+                        LoggingService.Log($"Found matching titleblock instance: {instance.Id}");
+                        return instance;
+                    }
+                }
+            }
+
+            LoggingService.Log($"Found {familyInstanceCount} family instances on sheet {sheet.Name}");
+            return null;
+        }
+
+        /// <summary>
+        /// Gets a Revit view from an IPXView
+        /// </summary>
+        private static View GetRevitView(Document doc, IPXView ipxView)
+        {
             // Check if the view can be placed on a sheet
             if (!ipxView.CanBePlacedOnSheet)
             {
@@ -513,6 +492,7 @@ namespace ipx.revit.reports.Services
                 return null;
             }
 
+            ElementId viewId = RevitViewConverter.GetElementId(ipxView);
             if (viewId == ElementId.InvalidElementId)
             {
                 LoggingService.LogError($"Could not get valid ElementId for view {ipxView.Name}");
@@ -526,44 +506,30 @@ namespace ipx.revit.reports.Services
                 return null;
             }
 
+            return view;
+        }
 
-            // Create the viewport within a transaction
-            Viewport viewport = null;
-            using (Transaction tx = new Transaction(doc, "Place View on Sheet"))
-            {
-                tx.Start();
-                try
-                {
-                    // Create the viewport
-                    viewport = Viewport.Create(doc, sheet.Id, view.Id, position);
-
-                    if (viewport != null)
-                    {
-                        // Set the viewport scale if available
-                        Parameter scaleParam = viewport.get_Parameter(BuiltInParameter.VIEWPORT_SCALE);
-                        if (scaleParam != null && !scaleParam.IsReadOnly && ipxView.Scale > 0)
-                        {
-                            scaleParam.Set(ipxView.Scale);
-                        }
-                    }
-
-                    tx.Commit();
-                }
-                catch (Exception ex)
-                {
-                    tx.RollBack();
-                    LoggingService.LogError($"Error creating viewport: {ex.Message}");
-                    return null;
-                }
-            }
-
+        /// <summary>
+        /// Creates a viewport on a sheet
+        /// </summary>
+        private static Viewport CreateViewport(Document doc, ViewSheet sheet, View view, XYZ position, IPXView ipxView)
+        {
+            // Create the viewport
+            Viewport viewport = Viewport.Create(doc, sheet.Id, view.Id, position);
             if (viewport != null)
             {
-                LoggingService.Log("View placed successfully on sheet");
+                // Set the viewport scale if available
+                Parameter scaleParam = viewport.get_Parameter(BuiltInParameter.VIEWPORT_SCALE);
+                if (scaleParam != null && !scaleParam.IsReadOnly && ipxView.Scale > 0)
+                {
+                    scaleParam.Set(ipxView.Scale);
+                }
+
+                LoggingService.Log($"Successfully placed view {ipxView.Name} on sheet {sheet.Name} at position ({position.X}, {position.Y})");
             }
             else
             {
-                LoggingService.LogError("Failed to create viewport");
+                LoggingService.LogError($"Failed to create viewport for view {ipxView.Name}");
             }
 
             return viewport;
@@ -691,42 +657,11 @@ namespace ipx.revit.reports.Services
 
             return createdSheets;
         }
-
-        /// <summary>
-        /// Creates sheets for views and places views on sheets
-        /// </summary>
-        /// <param name="doc">The Revit document</param>
-        /// <param name="views">The views to create sheets for</param>
-        /// <returns>The number of sheets created and views placed</returns>
-        public static int CreateAndPlaceViewsOnSheets(Document doc, IList<ViewPlan> views)
-        {
-            try
-            {
-                LoggingService.Log("Starting to create sheets and place views...");
-
-                // Extract unique levels from views
-                var levels = views.Select(v => v.GenLevel).Distinct(new LevelEqualityComparer()).ToList();
-                LoggingService.Log($"Found {levels.Count} unique levels from views");
-
-                // Create sheets for each level
-                var sheets = CreateSheetsForLevels(doc, levels);
-                LoggingService.Log($"Created {sheets.Count} sheets");
-
-                // Place views on sheets
-                int sheetCount = PlaceViewsOnSheets(doc, views, sheets);
-                LoggingService.Log($"Placed views on {sheetCount} sheets");
-
-                return sheetCount;
-            }
-            catch (Exception ex)
-            {
-                LoggingService.LogError($"Error creating and placing views on sheets: {ex.Message}");
-                return 0;
-            }
-        }
-
     }
 
+    /// <summary>
+    /// Comparer for Level objects
+    /// </summary>
     class LevelEqualityComparer : IEqualityComparer<Level>
     {
         public bool Equals(Level? l1, Level? l2)
