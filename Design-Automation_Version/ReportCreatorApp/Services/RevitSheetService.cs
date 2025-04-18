@@ -4,6 +4,7 @@ using System.Linq;
 
 using Autodesk.Revit.DB;
 
+using ipx.revit.reports._Constants;
 using ipx.revit.reports.Models;
 using ipx.revit.reports.Utilities;
 
@@ -77,7 +78,7 @@ namespace ipx.revit.reports.Services
                     }
 
                     // Get the titleblock
-                    ElementId titleblockId = RevitTitleBlockService.GetTitleblockId(doc, "_SCHEMATIC PLAN TITLEBLOCK");
+                    ElementId titleblockId = RevitTitleBlockService.GetTitleblockId(doc, CONSTANTS._TITLEBLOCKNAME);
                     if (titleblockId == ElementId.InvalidElementId)
                     {
                         LoggingService.LogWarning($"Could not find titleblock for sheet {sheet.Name}");
@@ -167,7 +168,7 @@ namespace ipx.revit.reports.Services
             int sheetCount = 0;
 
             // Get the titleblock family
-            ElementId titleblockId = RevitTitleBlockService.GetTitleblockId(doc, "_SCHEMATIC PLAN TITLEBLOCK");
+            ElementId titleblockId = RevitTitleBlockService.GetTitleblockId(doc, CONSTANTS._TITLEBLOCKNAME);
             if (titleblockId == ElementId.InvalidElementId)
             {
                 LoggingService.LogError("Could not find the '_SCHEMATIC PLAN TITLEBLOCK' titleblock");
@@ -228,7 +229,7 @@ namespace ipx.revit.reports.Services
             int sheetCount = 0;
 
             // Get the titleblock family
-            ElementId titleblockId = RevitTitleBlockService.GetTitleblockId(doc, "_SCHEMATIC PLAN TITLEBLOCK");
+            ElementId titleblockId = RevitTitleBlockService.GetTitleblockId(doc, CONSTANTS._TITLEBLOCKNAME);
             if (titleblockId == ElementId.InvalidElementId)
             {
                 LoggingService.LogError("Could not find the '_SCHEMATIC PLAN TITLEBLOCK' titleblock");
@@ -452,10 +453,10 @@ namespace ipx.revit.reports.Services
             try
             {
                 // Get the titleblock family
-                ElementId titleblockId = RevitTitleBlockService.GetTitleblockId(doc, "_SCHEMATIC PLAN TITLEBLOCK");
+                ElementId titleblockId = RevitTitleBlockService.GetTitleblockId(doc, CONSTANTS._TITLEBLOCKNAME);
                 if (titleblockId == ElementId.InvalidElementId)
                 {
-                    LoggingService.LogError("Could not find the '_SCHEMATIC PLAN TITLEBLOCK' titleblock");
+                    LoggingService.LogError($"Could not find the '{CONSTANTS._TITLEBLOCKNAME}' titleblock");
                     return null;
                 }
 

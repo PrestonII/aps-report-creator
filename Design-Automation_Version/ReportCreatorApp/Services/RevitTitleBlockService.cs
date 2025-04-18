@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -20,18 +21,17 @@ namespace ipx.revit.reports.Services
         {
             // Get all titleblock families
             FilteredElementCollector collector = new FilteredElementCollector(doc);
-            IList<Element> titleblocks = collector.OfClass(typeof(FamilySymbol)).ToElements();
+            IList<Element> titleblocks = collector
+                .OfClass(typeof(FamilySymbol))
+                .Where(e => (e as FamilySymbol).Category.BuiltInCategory == BuiltInCategory.OST_TitleBlocks)
+                .ToList();
 
             // Find the titleblock with the specified name
             foreach (Element element in titleblocks)
             {
-                FamilySymbol symbol = element as FamilySymbol;
-                if (symbol != null && symbol.Family.FamilyCategory.Id.IntegerValue == (int)BuiltInCategory.OST_TitleBlocks)
+                if (String.Equals((element as FamilySymbol).FamilyName, titleblockName))
                 {
-                    if (symbol.Family.Name == titleblockName)
-                    {
-                        return symbol.Id;
-                    }
+                    return element.Id;
                 }
             }
 

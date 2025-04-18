@@ -4,6 +4,8 @@ using System.Linq;
 
 using Autodesk.Revit.DB;
 
+using ipx.revit.reports._Constants;
+
 namespace ipx.revit.reports.Services
 {
     /// <summary>
@@ -116,7 +118,7 @@ namespace ipx.revit.reports.Services
                     tx.Start();
                     try
                     {
-                        ElementId titleblockId = RevitTitleBlockService.GetTitleblockId(doc, "_SCHEMATIC PLAN TITLEBLOCK");
+                        ElementId titleblockId = RevitTitleBlockService.GetTitleblockId(doc, CONSTANTS._TITLEBLOCKNAME);
                         if (titleblockId == ElementId.InvalidElementId)
                         {
                             LoggingService.LogWarning($"Could not find titleblock for level {level.Name}");
