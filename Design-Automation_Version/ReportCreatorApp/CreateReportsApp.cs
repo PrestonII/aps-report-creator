@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 
 using Autodesk.Revit.ApplicationServices;
 using Autodesk.Revit.DB;
@@ -45,12 +46,12 @@ namespace ipx.revit.reports
                 LoggingService.Log($"Linked {linkedCount} reference files");
 
                 // Step 2: Create levels and views based on the linked files
-                var (views, sheets) = RevitViewService.CreateLevelsAndViews(doc);
+                var views = RevitViewService.CreateLevelsAndViews(doc);
                 LoggingService.Log($"Created {views.Count} views");
 
-                // Place views on sheets
-                int sheetCount = RevitSheetService.PlaceViewsOnSheets(doc, views, sheets);
-                LoggingService.Log($"Created {sheetCount} sheets");
+                // Create sheets and place views on them
+                int sheetCount = RevitSheetService.CreateAndPlaceViewsOnSheets(doc, views);
+                LoggingService.Log($"Created and placed views on {sheetCount} sheets");
 
                 // Get additional data
                 var assetPaths = RevitModelValidationService.GetAssetsPaths(e.DesignAutomationData);

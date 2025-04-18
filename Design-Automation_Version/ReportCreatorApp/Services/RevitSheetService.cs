@@ -642,5 +642,104 @@ namespace ipx.revit.reports.Services
                 return null;
             }
         }
+
+        /// <summary>
+        /// Creates sheets for each level
+        /// </summary>
+        /// <param name="doc">The Revit document</param>
+        /// <param name="levels">The levels to create sheets for</param>
+        /// <returns>The created sheets</returns>
+        public static List<ViewSheet> CreateSheetsForLevels(Document doc, List<Level> levels)
+        {
+            List<ViewSheet> createdSheets = new List<ViewSheet>();
+
+            foreach (Level level in levels)
+            {
+                if (level == null || !level.IsValidObject)
+                {
+                    LoggingService.LogWarning("Invalid level encountered, skipping");
+                    continue;
+                }
+
+                using (Transaction tx = new Transaction(doc, "Create Sheet"))
+                {
+                    tx.Start();
+                    try
+                    {
+                        ElementId titleblockId = RevitTitleBlockService.GetTitleblockId(doc, CONSTANTS._TITLEBLOCKNAME);
+                        if (titleblockId == ElementId.InvalidElementId)
+                        {
+                            LoggingService.LogWarning($"Could not find titleblock for level {level.Name}");
+                            continue;
+                        }
+
+                        ViewSheet sheet = ViewSheet.Create(doc, titleblockId);
+                        if (sheet != null)
+                        {
+                            sheet.Name = $"Level {level.Name}";
+                            createdSheets.Add(sheet);
+                        }
+                        tx.Commit();
+                    }
+                    catch (Exception ex)
+                    {
+                        tx.RollBack();
+                        LoggingService.LogError($"Error creating sheet for level {level.Name}: {ex.Message}");
+                    }
+                }
+            }
+
+            return createdSheets;
+        }
+
+        /// <summary>
+        /// Creates sheets for views and places views on sheets
+        /// </summary>
+        /// <param name="doc">The Revit document</param>
+        /// <param name="views">The views to create sheets for</param>
+        /// <returns>The number of sheets created and views placed</returns>
+        public static int CreateAndPlaceViewsOnSheets(Document doc, IList<ViewPlan> views)
+        {
+            try
+            {
+                LoggingService.Log("Starting to create sheets and place views...");
+
+                // Extract unique levels from views
+                var levels = views.Select(v => v.GenLevel).Distinct(new LevelEqualityComparer()).ToList();
+                LoggingService.Log($"Found {levels.Count} unique levels from views");
+
+                // Create sheets for each level
+                var sheets = CreateSheetsForLevels(doc, levels);
+                LoggingService.Log($"Created {sheets.Count} sheets");
+
+                // Place views on sheets
+                int sheetCount = PlaceViewsOnSheets(doc, views, sheets);
+                LoggingService.Log($"Placed views on {sheetCount} sheets");
+
+                return sheetCount;
+            }
+            catch (Exception ex)
+            {
+                LoggingService.LogError($"Error creating and placing views on sheets: {ex.Message}");
+                return 0;
+            }
+        }
+
+    }
+
+    class LevelEqualityComparer : IEqualityComparer<Level>
+    {
+        public bool Equals(Level? l1, Level? l2)
+        {
+            if (ReferenceEquals(l1, l2))
+                return true;
+
+            if (l2 is null || l1 is null)
+                return false;
+
+            return l1.Name == l2.Name && l1.UniqueId == l2.UniqueId;
+        }
+
+        public int GetHashCode(Level level) => $"{level.UniqueId}^{level.Name}".GetHashCode();
     }
 }

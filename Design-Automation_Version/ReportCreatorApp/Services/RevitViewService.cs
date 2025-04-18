@@ -34,8 +34,8 @@ namespace ipx.revit.reports.Services
         /// Creates levels and views based on the linked files
         /// </summary>
         /// <param name="doc">The Revit document</param>
-        /// <returns>A tuple containing the created views and sheets</returns>
-        public static (IList<ViewPlan> views, IList<ViewSheet> sheets) CreateLevelsAndViews(Document doc)
+        /// <returns>A list of created views</returns>
+        public static IList<ViewPlan> CreateLevelsAndViews(Document doc)
         {
             try
             {
@@ -51,7 +51,7 @@ namespace ipx.revit.reports.Services
                 if (revitLinks.Count == 0)
                 {
                     LoggingService.LogError("No linked Revit files found");
-                    return (new List<ViewPlan>(), new List<ViewSheet>());
+                    return new List<ViewPlan>();
                 }
 
                 LoggingService.Log($"Found {revitLinks.Count} linked Revit files");
@@ -61,7 +61,7 @@ namespace ipx.revit.reports.Services
                 if (levels.Count == 0)
                 {
                     LoggingService.LogError("No levels found in linked files");
-                    return (new List<ViewPlan>(), new List<ViewSheet>());
+                    return new List<ViewPlan>();
                 }
 
                 // STEP 2: Create levels in the current document
@@ -79,69 +79,16 @@ namespace ipx.revit.reports.Services
                 // STEP 5: Apply scope boxes to all views for each level
                 ApplyScopeBoxesToViews(doc, viewsByLevel, curveLoopsByLevelName);
 
-                // STEP 6: Create sheets for each level
-                List<ViewSheet> createdSheets = CreateSheetsForLevels(doc, createdLevels);
-                LoggingService.Log($"Created {createdSheets.Count} sheets");
-
                 // Collect all views into a single list
                 List<ViewPlan> allViews = viewsByLevel.Values.SelectMany(v => v).ToList();
 
-                return (allViews, createdSheets);
+                return allViews;
             }
             catch (Exception ex)
             {
                 LoggingService.LogError($"Error creating levels and views: {ex.Message}");
-                return (new List<ViewPlan>(), new List<ViewSheet>());
+                return new List<ViewPlan>();
             }
-        }
-
-        /// <summary>
-        /// Creates sheets for each level
-        /// </summary>
-        /// <param name="doc">The Revit document</param>
-        /// <param name="levels">The levels to create sheets for</param>
-        /// <returns>The created sheets</returns>
-        private static List<ViewSheet> CreateSheetsForLevels(Document doc, List<Level> levels)
-        {
-            List<ViewSheet> createdSheets = new List<ViewSheet>();
-
-            foreach (Level level in levels)
-            {
-                if (level == null || !level.IsValidObject)
-                {
-                    LoggingService.LogWarning("Invalid level encountered, skipping");
-                    continue;
-                }
-
-                using (Transaction tx = new Transaction(doc, "Create Sheet"))
-                {
-                    tx.Start();
-                    try
-                    {
-                        ElementId titleblockId = RevitTitleBlockService.GetTitleblockId(doc, CONSTANTS._TITLEBLOCKNAME);
-                        if (titleblockId == ElementId.InvalidElementId)
-                        {
-                            LoggingService.LogWarning($"Could not find titleblock for level {level.Name}");
-                            continue;
-                        }
-
-                        ViewSheet sheet = ViewSheet.Create(doc, titleblockId);
-                        if (sheet != null)
-                        {
-                            sheet.Name = $"Level {level.Name}";
-                            createdSheets.Add(sheet);
-                        }
-                        tx.Commit();
-                    }
-                    catch (Exception ex)
-                    {
-                        tx.RollBack();
-                        LoggingService.LogError($"Error creating sheet for level {level.Name}: {ex.Message}");
-                    }
-                }
-            }
-
-            return createdSheets;
         }
 
         /// <summary>
