@@ -518,10 +518,16 @@ namespace ipx.revit.reports.Services
         /// </summary>
         private static Viewport CreateViewport(Document doc, ViewSheet sheet, View view, XYZ position, IPXView ipxView)
         {
+            // Hide cropbox
+            view.CropBoxVisible = false;
+
             // Create the viewport
             Viewport viewport = Viewport.Create(doc, sheet.Id, view.Id, position);
             if (viewport != null)
             {
+                // Make the viewport of the "No Title" type
+                ChangeViewportType(doc, viewport, CONSTANTS._VIEWPORT_NO_TITLE);
+
                 // Set the viewport scale if available
                 Parameter scaleParam = viewport.get_Parameter(BuiltInParameter.VIEWPORT_SCALE);
                 if (scaleParam != null && !scaleParam.IsReadOnly && ipxView.Scale > 0)
@@ -537,6 +543,36 @@ namespace ipx.revit.reports.Services
             }
 
             return viewport;
+        }
+
+        public static void ChangeViewportType(Document doc, Viewport viewport, string newTypeName)
+        {
+            try
+            {
+                // Retrieve all element types of the Viewport category
+                var viewportTypes = new FilteredElementCollector(doc)
+                    .OfClass(typeof(ElementType))
+                    .WhereElementIsElementType()
+                    .Where(et => et.Category != null && et.Category.Id.IntegerValue == (int)BuiltInCategory.OST_Viewports)
+                    .Cast<ElementType>();
+
+                // Find the viewport type with the specified name
+                var newType = viewportTypes.FirstOrDefault(vt => vt.Name.Equals(newTypeName));
+
+                if (newType != null)
+                {
+                    // Change the type of the viewport
+                    viewport.ChangeTypeId(newType.Id);
+                }
+                else
+                {
+                    LoggingService.LogError($"Could not find another viewport call {newTypeName}");
+                }
+            }
+            catch (Exception ex)
+            {
+                LoggingService.LogError($"Failed to change viewport type for view {viewport.Name}");
+            }
         }
 
         /// <summary>
