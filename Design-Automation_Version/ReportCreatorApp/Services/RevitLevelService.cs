@@ -20,7 +20,7 @@ namespace ipx.revit.reports.Services
         public static List<Level> CollectLevelsFromLinkedFiles(Document doc, IList<Element> revitLinks)
         {
             List<Level> levels = new List<Level>();
-            
+
             foreach (Element link in revitLinks)
             {
                 RevitLinkInstance linkInstance = link as RevitLinkInstance;
@@ -95,7 +95,7 @@ namespace ipx.revit.reports.Services
 
             return levels.Any(e => e.Name == levelName);
         }
-        
+
         /// <summary>
         /// Finds a level by name in the document
         /// </summary>
@@ -112,7 +112,7 @@ namespace ipx.revit.reports.Services
 
             return levels.FirstOrDefault(e => e.Name == levelName) as Level;
         }
-        
+
         /// <summary>
         /// Finds the corresponding level in a linked document
         /// </summary>
@@ -137,5 +137,26 @@ namespace ipx.revit.reports.Services
                 .Cast<Level>()
                 .FirstOrDefault(l => Math.Abs(l.Elevation - mainLevel.Elevation) < 0.001);
         }
+
+        public static string GetLevelNumber(Level level)
+        {
+            string name = level.Name.Trim();
+
+            // Remove common prefix
+            if (name.StartsWith("Level", StringComparison.OrdinalIgnoreCase))
+            {
+                name = name.Substring(5).Trim(); // remove "Level"
+            }
+
+            // Try to parse the remaining part as a number
+            if (int.TryParse(name, out int levelNumber))
+            {
+                return $"{levelNumber}";
+            }
+
+            // Optional: Handle special cases by simply pushing them out directly
+            return name.ToLower();
+        }
+
     }
-} 
+}

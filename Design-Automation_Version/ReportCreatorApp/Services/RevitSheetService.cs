@@ -111,6 +111,7 @@ namespace ipx.revit.reports.Services
                         // but offset from the titleblock's position
                         XYZ viewCenter = new XYZ(0, 0, 0);  // Position relative to titleblock
                         PlaceViewOnSheet(doc, sheet, bestView, viewCenter);
+                        UpdateSheetAreaCalculations(doc, sheet);
 
                         LoggingService.Log($"Created individual sheet for level {levelName} with view {bestView.Name}");
                         sheetCount++;
@@ -125,6 +126,36 @@ namespace ipx.revit.reports.Services
             }
 
             return sheetCount;
+        }
+
+        /// <summary>
+        /// Adds the Level area to the parameters for a given sheet 
+        /// Gets all views placed on this sheet automatically
+        /// </summary>
+        /// <param name="sheet"></param>
+        /// <param name="views"></param>
+        private static void UpdateSheetAreaCalculations(Document doc, ViewSheet sheet)
+        {
+            var viewIds = sheet.GetAllPlacedViews();
+            var views = viewIds.Select(id => doc.GetElement(id)).Cast<Autodesk.Revit.DB.View>();
+            var levels = views.Select(v => v.GenLevel).ToArray();
+
+            string levelNameValue = "";
+
+            for (int i = 0; i < levels.Count(); i++)
+            {
+                var level = levels[i]; // get the current level
+                levelNameValue += $"Floor {RevitLevelService.GetLevelNumber(level)} __ sq. ft"; // add the current level name, use __ until we can actually calculate area
+                if (i < levels.Count() - 1) levelNameValue += ", "; // add a comma if this is not the last one
+            }
+
+            // set the level specific data
+            var levelArea = sheet.LookupParameter(CONSTANTS._PROJECT_LEVEL_SPECIFIC);
+            levelArea.Set(levelNameValue);
+
+            // set the total level area
+            var totalArea = sheet.LookupParameter(CONSTANTS._PROJECT_TOTAL_SPECIFIC);
+            totalArea.Set("TOTAL: __ sq. ft");
         }
 
         /// <summary>
@@ -551,8 +582,7 @@ namespace ipx.revit.reports.Services
             {
                 // Retrieve all element types of the Viewport category
                 var viewportTypes = new FilteredElementCollector(doc)
-                    .OfClass(typeof(Viewport))
-                    ;
+                    .OfClass(typeof(Viewport));
 
                 // Find the viewport type with the specified name
                 var newType = viewportTypes.FirstOrDefault(vt => vt.Name.Equals(newTypeName));
@@ -715,5 +745,13 @@ namespace ipx.revit.reports.Services
         }
 
         public int GetHashCode(Level level) => $"{level.UniqueId}^{level.Name}".GetHashCode();
+    }
+
+
+    enum SheetType
+    {
+        Unknown = -1,
+        Individual = 0,
+        Combined = 1
     }
 }
