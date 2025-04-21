@@ -373,6 +373,10 @@ namespace ipx.revit.reports.Services
                 XYZ absolutePosition;
                 if (titleblockInstance != null)
                 {
+                    var box = titleblockInstance.get_BoundingBox(sheet);
+                    var totalWidth = box.Max.X - box.Min.X;
+                    var totalHeight = box.Max.Y - box.Min.Y;
+
                     // Get the titleblock's position
                     LocationPoint locationPoint = titleblockInstance.Location as LocationPoint;
                     if (locationPoint != null)
@@ -381,8 +385,8 @@ namespace ipx.revit.reports.Services
                         LoggingService.Log($"Titleblock position: ({titleblockPosition.X}, {titleblockPosition.Y})");
 
                         absolutePosition = new XYZ(
-                            titleblockPosition.X + position.X,
-                            titleblockPosition.Y + position.Y,
+                            titleblockPosition.X + totalWidth / 2,
+                            titleblockPosition.Y + totalHeight / 2,
                             0
                         );
                     }
