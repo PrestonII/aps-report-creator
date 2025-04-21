@@ -41,8 +41,9 @@ namespace ipx.revit.reports.Services
         /// <param name="views">The list of views to check</param>
         /// <param name="maxWidth">The maximum width in feet</param>
         /// <param name="maxHeight">The maximum height in feet</param>
+        /// <param name="tolerance">Optional tolerance factor to allow slightly larger or smaller views (default: 0.0)</param>
         /// <returns>The best fitting view, or null if none found</returns>
-        public static IPXView FindBestFittingView(List<IPXView> views, double maxWidth, double maxHeight)
+        public static IPXView FindBestFittingView(List<IPXView> views, double maxWidth, double maxHeight, double tolerance = 0.0)
         {
             if (views == null || !views.Any())
                 return null;
@@ -53,10 +54,14 @@ namespace ipx.revit.reports.Services
             IPXView bestFittingView = null;
             double bestFittingArea = 0;
 
+            // Apply tolerance to the maximum dimensions
+            double adjustedMaxWidth = maxWidth * (1.0 + tolerance);
+            double adjustedMaxHeight = maxHeight * (1.0 + tolerance);
+
             foreach (IPXView view in sortedViews)
             {
-                // Check if the view fits within the constraints
-                if (view.Width <= maxWidth && view.Height <= maxHeight)
+                // Check if the view fits within the constraints (with tolerance)
+                if (view.Width <= adjustedMaxWidth && view.Height <= adjustedMaxHeight)
                 {
                     double viewArea = view.Width * view.Height;
                     if (viewArea > bestFittingArea)

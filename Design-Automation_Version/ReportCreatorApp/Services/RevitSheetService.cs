@@ -88,6 +88,14 @@ namespace ipx.revit.reports.Services
                 return 0;
             }
 
+            // Get the titleblock family ID
+            ElementId titleblockFamilyId = (doc.GetElement(titleblockId) as FamilySymbol).Family.Id;
+            if (titleblockFamilyId == ElementId.InvalidElementId)
+            {
+                LoggingService.LogError($"Could not find titleblock family {CONSTANTS._TITLEBLOCKNAME}");
+                return 0;
+            }
+
             using (Transaction tx = new Transaction(doc, "Create Individual Sheets"))
             {
                 tx.Start();
@@ -98,7 +106,7 @@ namespace ipx.revit.reports.Services
                     List<IPXView> views = levelViews.Value;
 
                     // Find the best fitting view for individual sheet
-                    IPXView bestView = ViewService.FindBestFittingView(views, INDIVIDUAL_VIEW_MAX_WIDTH, INDIVIDUAL_VIEW_MAX_HEIGHT);
+                    IPXView bestView = ViewService.FindBestFittingView(views, INDIVIDUAL_VIEW_MAX_WIDTH, INDIVIDUAL_VIEW_MAX_HEIGHT, 0.05);
 
                     if (bestView != null)
                     {
@@ -106,11 +114,18 @@ namespace ipx.revit.reports.Services
                         ViewSheet sheet = ViewSheet.Create(doc, titleblockId);
                         sheet.Name = $"Individual - {levelName}";
 
-                        // Place the view on the sheet relative to the titleblock's position
-                        // The view should be centered on the sheet, so we'll use the sheet dimensions
-                        // but offset from the titleblock's position
-                        XYZ viewCenter = new XYZ(0, 0, 0);  // Position relative to titleblock
-                        PlaceViewOnSheet(doc, sheet, bestView, viewCenter);
+                        // Ensure titleblock exists and get its instance
+                        FamilyInstance titleblockInstance = null;
+                        if (EnsureTitleblockExists(doc, sheet, titleblockFamilyId))
+                        {
+                            titleblockInstance = FindTitleblockOnSheet(doc, sheet, titleblockFamilyId);
+                        }
+
+                        // Calculate the view center based on the titleblock
+                        XYZ viewCenter = CalculateViewCenterForIndividualSheet(doc, sheet, titleblockInstance);
+
+                        // Place the view on the sheet
+                        PlaceViewOnSheet(doc, sheet, bestView, viewCenter, titleblockInstance);
                         UpdateSheetAreaCalculations(doc, sheet);
 
                         LoggingService.Log($"Created individual sheet for level {levelName} with view {bestView.Name}");
@@ -126,6 +141,92 @@ namespace ipx.revit.reports.Services
             }
 
             return sheetCount;
+        }
+
+        /// <summary>
+        /// Calculates the center position for a view on an individual sheet
+        /// </summary>
+        private static XYZ CalculateViewCenterForIndividualSheet(Document doc, ViewSheet sheet, FamilyInstance titleblockInstance)
+        {
+            // Default to sheet center if no titleblock
+            if (titleblockInstance == null)
+            {
+                return new XYZ(SHEET_WIDTH / 2, SHEET_HEIGHT / 2, 0);
+            }
+
+            // Get the titleblock's bounding box
+            var box = titleblockInstance.get_BoundingBox(sheet);
+            var totalWidth = box.Max.X - box.Min.X;
+            var totalHeight = box.Max.Y - box.Min.Y;
+
+            // Get the titleblock's position
+            LocationPoint locationPoint = titleblockInstance.Location as LocationPoint;
+            if (locationPoint != null)
+            {
+                XYZ titleblockPosition = locationPoint.Point;
+                LoggingService.Log($"Titleblock position: ({titleblockPosition.X}, {titleblockPosition.Y})");
+
+                // Calculate the center of the titleblock
+                XYZ titleblockCenter = new XYZ(
+                    titleblockPosition.X + totalWidth / 2,
+                    titleblockPosition.Y + totalHeight / 2,
+                    0
+                );
+
+                // Return the titleblock center
+                return titleblockCenter;
+            }
+
+            // Fallback to sheet center
+            return new XYZ(SHEET_WIDTH / 2, SHEET_HEIGHT / 2, 0);
+        }
+
+        /// <summary>
+        /// Calculates the center position for a view on a panel in a combined sheet
+        /// </summary>
+        private static XYZ CalculateViewCenterForPanel(Document doc, ViewSheet sheet, FamilyInstance titleblockInstance, 
+            double xOffset, double yOffset, double viewWidth, double viewHeight)
+        {
+            // Default to calculated position if no titleblock
+            if (titleblockInstance == null)
+            {
+                return new XYZ(xOffset, yOffset, 0);
+            }
+
+            // Get the titleblock's bounding box
+            var box = titleblockInstance.get_BoundingBox(sheet);
+            var totalWidth = box.Max.X - box.Min.X;
+            var totalHeight = box.Max.Y - box.Min.Y;
+
+            // Get the titleblock's position
+            LocationPoint locationPoint = titleblockInstance.Location as LocationPoint;
+            if (locationPoint != null)
+            {
+                XYZ titleblockPosition = locationPoint.Point;
+                LoggingService.Log($"Titleblock position: ({titleblockPosition.X}, {titleblockPosition.Y})");
+
+                // Calculate the center of the titleblock
+                XYZ titleblockCenter = new XYZ(
+                    titleblockPosition.X + totalWidth / 2,
+                    titleblockPosition.Y + totalHeight / 2,
+                    0
+                );
+
+                // Calculate the panel position relative to the titleblock center
+                // For panels, we need to offset from the titleblock center based on the panel's position
+                // The xOffset and yOffset parameters represent the desired position relative to the sheet
+                // We'll use these to calculate the position relative to the titleblock
+                
+                // Calculate the position relative to the titleblock center
+                double relativeX = xOffset - titleblockCenter.X;
+                double relativeY = yOffset - titleblockCenter.Y;
+                
+                // Return the position relative to the titleblock center
+                return new XYZ(relativeX, relativeY, 0);
+            }
+
+            // Fallback to calculated position
+            return new XYZ(xOffset, yOffset, 0);
         }
 
         /// <summary>
@@ -173,6 +274,14 @@ namespace ipx.revit.reports.Services
                 return 0;
             }
 
+            // Get the titleblock family ID
+            ElementId titleblockFamilyId = (doc.GetElement(titleblockId) as FamilySymbol).Family.Id;
+            if (titleblockFamilyId == ElementId.InvalidElementId)
+            {
+                LoggingService.LogError($"Could not find titleblock family {CONSTANTS._TITLEBLOCKNAME}");
+                return 0;
+            }
+
             // Sort levels by name to ensure consistent ordering
             var sortedLevels = viewsByLevel.Keys.OrderBy(l => l).ToList();
 
@@ -210,14 +319,21 @@ namespace ipx.revit.reports.Services
                     ViewSheet sheet = ViewSheet.Create(doc, titleblockId);
                     sheet.Name = $"Combined - Sheet {i + 1}";
 
+                    // Ensure titleblock exists and get its instance
+                    FamilyInstance titleblockInstance = null;
+                    if (EnsureTitleblockExists(doc, sheet, titleblockFamilyId))
+                    {
+                        titleblockInstance = FindTitleblockOnSheet(doc, sheet, titleblockFamilyId);
+                    }
+
                     // Place views on the sheet
                     if (useTwoPanel)
                     {
-                        PlaceViewsOnTwoPanelSheet(doc, sheet, levelGroup, viewsByLevel);
+                        PlaceViewsOnTwoPanelSheet(doc, sheet, levelGroup, viewsByLevel, titleblockInstance);
                     }
                     else
                     {
-                        PlaceViewsOnFourPanelSheet(doc, sheet, levelGroup, viewsByLevel);
+                        PlaceViewsOnFourPanelSheet(doc, sheet, levelGroup, viewsByLevel, titleblockInstance);
                     }
 
                     LoggingService.Log($"Created combined sheet with {levelGroup.Count} levels");
@@ -233,22 +349,26 @@ namespace ipx.revit.reports.Services
         /// <summary>
         /// Places views on a 2-panel sheet
         /// </summary>
-        private static void PlaceViewsOnTwoPanelSheet(Document doc, ViewSheet sheet, List<string> levelGroup, Dictionary<string, List<IPXView>> viewsByLevel)
+        private static void PlaceViewsOnTwoPanelSheet(Document doc, ViewSheet sheet, List<string> levelGroup, 
+            Dictionary<string, List<IPXView>> viewsByLevel, FamilyInstance titleblockInstance)
         {
             // Panel A (top-left)
             if (levelGroup.Count > 0)
             {
                 string levelName = levelGroup[0];
-                IPXView view = ViewService.FindBestFittingView(viewsByLevel[levelName], TWO_PANEL_VIEW_WIDTH, TWO_PANEL_VIEW_HEIGHT);
+                IPXView view = ViewService.FindBestFittingView(viewsByLevel[levelName], TWO_PANEL_VIEW_WIDTH, TWO_PANEL_VIEW_HEIGHT, 0.25);
 
                 if (view != null)
                 {
                     // Calculate the center of Panel A
                     double x = PANEL_OFFSET + (TWO_PANEL_VIEW_WIDTH / 2);
                     double y = SHEET_HEIGHT - (PANEL_OFFSET + (TWO_PANEL_VIEW_HEIGHT / 2));
-                    XYZ viewCenter = new XYZ(x, y, 0);
+                    
+                    // Calculate the view center based on the titleblock
+                    XYZ viewCenter = CalculateViewCenterForPanel(doc, sheet, titleblockInstance, x, y, 
+                        TWO_PANEL_VIEW_WIDTH, TWO_PANEL_VIEW_HEIGHT);
 
-                    PlaceViewOnSheet(doc, sheet, view, viewCenter);
+                    PlaceViewOnSheet(doc, sheet, view, viewCenter, titleblockInstance);
                     LoggingService.Log($"Placed view {view.Name} in Panel A of sheet {sheet.Name}");
                 }
             }
@@ -257,16 +377,19 @@ namespace ipx.revit.reports.Services
             if (levelGroup.Count > 1)
             {
                 string levelName = levelGroup[1];
-                IPXView view = ViewService.FindBestFittingView(viewsByLevel[levelName], TWO_PANEL_VIEW_WIDTH, TWO_PANEL_VIEW_HEIGHT);
+                IPXView view = ViewService.FindBestFittingView(viewsByLevel[levelName], TWO_PANEL_VIEW_WIDTH, TWO_PANEL_VIEW_HEIGHT, 0.25);
 
                 if (view != null)
                 {
                     // Calculate the center of Panel B
                     double x = SHEET_WIDTH - (PANEL_OFFSET + (TWO_PANEL_VIEW_WIDTH / 2));
                     double y = SHEET_HEIGHT - (PANEL_OFFSET + (TWO_PANEL_VIEW_HEIGHT / 2));
-                    XYZ viewCenter = new XYZ(x, y, 0);
+                    
+                    // Calculate the view center based on the titleblock
+                    XYZ viewCenter = CalculateViewCenterForPanel(doc, sheet, titleblockInstance, x, y, 
+                        TWO_PANEL_VIEW_WIDTH, TWO_PANEL_VIEW_HEIGHT);
 
-                    PlaceViewOnSheet(doc, sheet, view, viewCenter);
+                    PlaceViewOnSheet(doc, sheet, view, viewCenter, titleblockInstance);
                     LoggingService.Log($"Placed view {view.Name} in Panel B of sheet {sheet.Name}");
                 }
             }
@@ -275,22 +398,26 @@ namespace ipx.revit.reports.Services
         /// <summary>
         /// Places views on a 4-panel sheet
         /// </summary>
-        private static void PlaceViewsOnFourPanelSheet(Document doc, ViewSheet sheet, List<string> levelGroup, Dictionary<string, List<IPXView>> viewsByLevel)
+        private static void PlaceViewsOnFourPanelSheet(Document doc, ViewSheet sheet, List<string> levelGroup, 
+            Dictionary<string, List<IPXView>> viewsByLevel, FamilyInstance titleblockInstance)
         {
             // Panel A (top-left)
             if (levelGroup.Count > 0)
             {
                 string levelName = levelGroup[0];
-                IPXView view = ViewService.FindBestFittingView(viewsByLevel[levelName], FOUR_PANEL_VIEW_WIDTH, FOUR_PANEL_VIEW_HEIGHT);
+                IPXView view = ViewService.FindBestFittingView(viewsByLevel[levelName], FOUR_PANEL_VIEW_WIDTH, FOUR_PANEL_VIEW_HEIGHT, 0.25);
 
                 if (view != null)
                 {
                     // Calculate the center of Panel A
                     double x = PANEL_OFFSET + (FOUR_PANEL_VIEW_WIDTH / 2);
                     double y = SHEET_HEIGHT - (PANEL_OFFSET + (FOUR_PANEL_VIEW_HEIGHT / 2));
-                    XYZ viewCenter = new XYZ(x, y, 0);
+                    
+                    // Calculate the view center based on the titleblock
+                    XYZ viewCenter = CalculateViewCenterForPanel(doc, sheet, titleblockInstance, x, y, 
+                        FOUR_PANEL_VIEW_WIDTH, FOUR_PANEL_VIEW_HEIGHT);
 
-                    PlaceViewOnSheet(doc, sheet, view, viewCenter);
+                    PlaceViewOnSheet(doc, sheet, view, viewCenter, titleblockInstance);
                     LoggingService.Log($"Placed view {view.Name} in Panel A of sheet {sheet.Name}");
                 }
             }
@@ -299,16 +426,19 @@ namespace ipx.revit.reports.Services
             if (levelGroup.Count > 1)
             {
                 string levelName = levelGroup[1];
-                IPXView view = ViewService.FindBestFittingView(viewsByLevel[levelName], FOUR_PANEL_VIEW_WIDTH, FOUR_PANEL_VIEW_HEIGHT);
+                IPXView view = ViewService.FindBestFittingView(viewsByLevel[levelName], FOUR_PANEL_VIEW_WIDTH, FOUR_PANEL_VIEW_HEIGHT, 0.25);
 
                 if (view != null)
                 {
                     // Calculate the center of Panel B
                     double x = SHEET_WIDTH - (PANEL_OFFSET + (FOUR_PANEL_VIEW_WIDTH / 2));
                     double y = SHEET_HEIGHT - (PANEL_OFFSET + (FOUR_PANEL_VIEW_HEIGHT / 2));
-                    XYZ viewCenter = new XYZ(x, y, 0);
+                    
+                    // Calculate the view center based on the titleblock
+                    XYZ viewCenter = CalculateViewCenterForPanel(doc, sheet, titleblockInstance, x, y, 
+                        FOUR_PANEL_VIEW_WIDTH, FOUR_PANEL_VIEW_HEIGHT);
 
-                    PlaceViewOnSheet(doc, sheet, view, viewCenter);
+                    PlaceViewOnSheet(doc, sheet, view, viewCenter, titleblockInstance);
                     LoggingService.Log($"Placed view {view.Name} in Panel B of sheet {sheet.Name}");
                 }
             }
@@ -317,16 +447,19 @@ namespace ipx.revit.reports.Services
             if (levelGroup.Count > 2)
             {
                 string levelName = levelGroup[2];
-                IPXView view = ViewService.FindBestFittingView(viewsByLevel[levelName], FOUR_PANEL_VIEW_WIDTH, FOUR_PANEL_VIEW_HEIGHT);
+                IPXView view = ViewService.FindBestFittingView(viewsByLevel[levelName], FOUR_PANEL_VIEW_WIDTH, FOUR_PANEL_VIEW_HEIGHT, 0.25);
 
                 if (view != null)
                 {
                     // Calculate the center of Panel C
                     double x = SHEET_WIDTH - (PANEL_OFFSET + (FOUR_PANEL_VIEW_WIDTH / 2));
                     double y = PANEL_OFFSET + (FOUR_PANEL_VIEW_HEIGHT / 2);
-                    XYZ viewCenter = new XYZ(x, y, 0);
+                    
+                    // Calculate the view center based on the titleblock
+                    XYZ viewCenter = CalculateViewCenterForPanel(doc, sheet, titleblockInstance, x, y, 
+                        FOUR_PANEL_VIEW_WIDTH, FOUR_PANEL_VIEW_HEIGHT);
 
-                    PlaceViewOnSheet(doc, sheet, view, viewCenter);
+                    PlaceViewOnSheet(doc, sheet, view, viewCenter, titleblockInstance);
                     LoggingService.Log($"Placed view {view.Name} in Panel C of sheet {sheet.Name}");
                 }
             }
@@ -335,16 +468,19 @@ namespace ipx.revit.reports.Services
             if (levelGroup.Count > 3)
             {
                 string levelName = levelGroup[3];
-                IPXView view = ViewService.FindBestFittingView(viewsByLevel[levelName], FOUR_PANEL_VIEW_WIDTH, FOUR_PANEL_VIEW_HEIGHT);
+                IPXView view = ViewService.FindBestFittingView(viewsByLevel[levelName], FOUR_PANEL_VIEW_WIDTH, FOUR_PANEL_VIEW_HEIGHT, 0.25);
 
                 if (view != null)
                 {
                     // Calculate the center of Panel D
                     double x = PANEL_OFFSET + (FOUR_PANEL_VIEW_WIDTH / 2);
                     double y = PANEL_OFFSET + (FOUR_PANEL_VIEW_HEIGHT / 2);
-                    XYZ viewCenter = new XYZ(x, y, 0);
+                    
+                    // Calculate the view center based on the titleblock
+                    XYZ viewCenter = CalculateViewCenterForPanel(doc, sheet, titleblockInstance, x, y, 
+                        FOUR_PANEL_VIEW_WIDTH, FOUR_PANEL_VIEW_HEIGHT);
 
-                    PlaceViewOnSheet(doc, sheet, view, viewCenter);
+                    PlaceViewOnSheet(doc, sheet, view, viewCenter, titleblockInstance);
                     LoggingService.Log($"Placed view {view.Name} in Panel D of sheet {sheet.Name}");
                 }
             }
@@ -356,39 +492,15 @@ namespace ipx.revit.reports.Services
         /// <param name="doc">The Revit document</param>
         /// <param name="sheet">The sheet</param>
         /// <param name="ipxView">The view to place</param>
-        /// <param name="position">The position to place the view relative to the titleblock</param>
+        /// <param name="position">The position to place the view</param>
+        /// <param name="titleblockInstance">The titleblock instance (optional)</param>
         /// <returns>The created viewport</returns>
-        public static Viewport PlaceViewOnSheet(Document doc, ViewSheet sheet, IPXView ipxView, XYZ position, ElementId? titleblockFamilyId = null)
+        public static Viewport PlaceViewOnSheet(Document doc, ViewSheet sheet, IPXView ipxView, XYZ position, 
+            FamilyInstance titleblockInstance = null)
         {
             try
             {
                 LoggingService.Log($"Attempting to place view {ipxView.Name} on sheet {sheet.Name}");
-
-                if (titleblockFamilyId == null)
-                {
-                    // Get the titleblock family ID
-                    ElementId titleblockId = RevitTitleBlockService.GetTitleblockId(doc, CONSTANTS._TITLEBLOCKNAME);
-                    titleblockFamilyId = (doc.GetElement(titleblockId) as FamilySymbol).Family.Id;
-                    if (titleblockFamilyId == ElementId.InvalidElementId)
-                    {
-                        LoggingService.LogError($"Could not find titleblock family {CONSTANTS._TITLEBLOCKNAME}");
-                        return null;
-                    }
-                    LoggingService.Log($"Found titleblock family ID: {titleblockFamilyId}");
-                }
-
-                // Find the titleblock instance on this sheet
-                FamilyInstance titleblockInstance = FindTitleblockOnSheet(doc, sheet, titleblockFamilyId);
-
-                if (titleblockInstance == null)
-                {
-                    LoggingService.Log($"No titleblock found on sheet {sheet.Name}, but continuing with view placement");
-                    // We'll continue without a titleblock, using the sheet's origin as reference
-                }
-                else
-                {
-                    LoggingService.Log($"Titleblock already exists on sheet {sheet.Name} with ID: {titleblockInstance.Id}");
-                }
 
                 // Get the Revit view from the IPXView
                 View revitView = GetRevitView(doc, ipxView);
@@ -398,43 +510,8 @@ namespace ipx.revit.reports.Services
                     return null;
                 }
 
-                // Calculate the absolute position
-                // If we have a titleblock, use its position as reference
-                // Otherwise, use the position directly
-                XYZ absolutePosition;
-                if (titleblockInstance != null)
-                {
-                    var box = titleblockInstance.get_BoundingBox(sheet);
-                    var totalWidth = box.Max.X - box.Min.X;
-                    var totalHeight = box.Max.Y - box.Min.Y;
-
-                    // Get the titleblock's position
-                    LocationPoint locationPoint = titleblockInstance.Location as LocationPoint;
-                    if (locationPoint != null)
-                    {
-                        XYZ titleblockPosition = locationPoint.Point;
-                        LoggingService.Log($"Titleblock position: ({titleblockPosition.X}, {titleblockPosition.Y})");
-
-                        absolutePosition = new XYZ(
-                            titleblockPosition.X + totalWidth / 2,
-                            titleblockPosition.Y + totalHeight / 2,
-                            0
-                        );
-                    }
-                    else
-                    {
-                        // Fallback to using the position directly
-                        absolutePosition = position;
-                    }
-                }
-                else
-                {
-                    // No titleblock, use the position directly
-                    absolutePosition = position;
-                }
-
                 // Create the viewport
-                return CreateViewport(doc, sheet, revitView, absolutePosition, ipxView);
+                return CreateViewport(doc, sheet, revitView, position, ipxView);
             }
             catch (Exception ex)
             {
