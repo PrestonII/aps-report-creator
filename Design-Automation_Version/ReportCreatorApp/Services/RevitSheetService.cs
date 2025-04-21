@@ -551,10 +551,8 @@ namespace ipx.revit.reports.Services
             {
                 // Retrieve all element types of the Viewport category
                 var viewportTypes = new FilteredElementCollector(doc)
-                    .OfClass(typeof(ElementType))
-                    .WhereElementIsElementType()
-                    .Where(et => et.Category != null && et.Category.Id.IntegerValue == (int)BuiltInCategory.OST_Viewports)
-                    .Cast<ElementType>();
+                    .OfClass(typeof(Viewport))
+                    ;
 
                 // Find the viewport type with the specified name
                 var newType = viewportTypes.FirstOrDefault(vt => vt.Name.Equals(newTypeName));
@@ -562,16 +560,17 @@ namespace ipx.revit.reports.Services
                 if (newType != null)
                 {
                     // Change the type of the viewport
-                    viewport.ChangeTypeId(newType.Id);
+                    viewport.ChangeTypeId(newType.GetTypeId());
                 }
                 else
                 {
-                    LoggingService.LogError($"Could not find another viewport call {newTypeName}");
+                    LoggingService.LogError($"Could not find another viewport called {newTypeName}");
                 }
             }
             catch (Exception ex)
             {
                 LoggingService.LogError($"Failed to change viewport type for view {viewport.Name}");
+                LoggingService.LogError(ex.Message);
             }
         }
 
