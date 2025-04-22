@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 
 using Autodesk.Revit.ApplicationServices;
@@ -61,7 +63,7 @@ namespace ipx.revit.reports
                 LoggingService.SetEnvironment(projectData.Environment);
 
                 // Continue with the rest of the process
-                //ExportToPdfs(e.DesignAutomationData, projectData, assetPaths);
+                ExportToPdfs(e.DesignAutomationData, projectData, assetPaths);
                 e.Succeeded = _success ?? false;
             }
             catch (Exception ex)
@@ -80,12 +82,12 @@ namespace ipx.revit.reports
             var (rvtApp, doc) = RevitModelValidationService.GetRevitAssets();
 
             // Import any additional assets if needed
-            if (assetPaths != null && assetPaths.Length > 0)
-            {
-                ImportImageAssets(doc, assetPaths);
-            }
+            //if (assetPaths != null && assetPaths.Length > 0)
+            //{
+            //    ImportImageAssets(doc, assetPaths);
+            //}
 
-            ExportToPdfsImp(rvtApp, doc, projectData);
+            ExportToPdfsImp(doc, projectData);
         }
 
         private void ImportImageAssets(Document doc, string[] images)
@@ -120,7 +122,7 @@ namespace ipx.revit.reports
             }
         }
 
-        private void ExportToPdfsImp(Application rvtApp, Document doc, ProjectData projectData)
+        private void ExportToPdfsImp(Document doc, ProjectData projectData)
         {
             using Transaction tx = new(doc);
             tx.Start("Export PDF");
@@ -129,8 +131,38 @@ namespace ipx.revit.reports
             {
                 LoggingService.Log("Starting report generation process...");
 
+                // Get all views that match the specified view types
+                List<View> views = new FilteredElementCollector(doc)
+                    .OfClass(typeof(View))
+                    .Cast<View>()
+                    .Where(vw => !vw.IsTemplate && vw.CanBePrinted && vw.ViewType == ViewType.DrawingSheet)
+                    .ToList();
+
+                // Export the views to PDF
+                if (views.Count > 0)
+                {
+                    IList<ElementId> viewIds = views.Select(v => v.Id).ToList();
+
+                    PDFExportOptions options = new PDFExportOptions
+                    {
+                        FileName = projectData.OutputFileName ?? "result",
+                        Combine = true
+                    };
+
+                    string workingFolder = Directory.GetCurrentDirectory();
+                    Console.WriteLine($"[INFO] Exporting {viewIds.Count} views to PDF in folder: {workingFolder}");
+
+                    doc.Export(workingFolder, viewIds, options);
+                    Console.WriteLine($"[INFO] PDF export completed successfully");
+                }
+                else
+                {
+                    Console.WriteLine("[WARNING] No views found matching the specified criteria");
+                }
+
                 tx.Commit();
                 LoggingService.Log("Report generation successfully completed...");
+                _success = true;
             }
             catch (Exception ex)
             {
