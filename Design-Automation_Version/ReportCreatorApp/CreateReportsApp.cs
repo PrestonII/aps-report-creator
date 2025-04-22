@@ -145,7 +145,7 @@ namespace ipx.revit.reports
 
                     PDFExportOptions options = new PDFExportOptions
                     {
-                        FileName = projectData.OutputFileName ?? "result",
+                        FileName = "result.pdf",
                         Combine = true
                     };
 
